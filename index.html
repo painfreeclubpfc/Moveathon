@@ -78,7 +78,7 @@
   .top{position:sticky;top:0;z-index:30;background:var(--navy-d);border-bottom:2px solid var(--gold);color:#fff;}
   .top .wrap{display:flex;align-items:center;gap:12px;padding:14px 20px;}
   .top .gem{width:26px;height:26px;flex:0 0 auto;}
-  .top .brandlogo{height:30px;width:auto;flex:0 0 auto;border-radius:6px;}
+  .top .brandlogo{height:44px;width:auto;flex:0 0 auto;border-radius:8px;}
   .top b{font-weight:800;letter-spacing:.5px;font-size:16px;}
   .top .tag{margin-left:auto;color:var(--gold-l);font-size:12px;letter-spacing:2px;text-transform:uppercase;font-weight:800;}
 
@@ -142,7 +142,7 @@
   .stepper button:active{background:#fdf8ec;scale:.94;}
   .stepper .val{font-family:var(--serif);font-weight:600;font-size:54px;color:var(--navy);min-width:96px;text-align:center;font-variant-numeric:tabular-nums;}
 
-  .scale{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-top:12px;}
+  .scale{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin-top:12px;}
   .scale button{aspect-ratio:1;border:2.5px solid var(--line);background:#fff;border-radius:13px;font-size:20px;font-weight:800;color:var(--navy);cursor:pointer;min-height:52px;transition:scale .12s cubic-bezier(.2,0,0,1),background .12s,border-color .12s;}
   .scale button:active{scale:.94;}
   .scale button.sel{background:var(--navy);border-color:var(--navy);color:#fff;}
@@ -193,11 +193,11 @@
 
   /* ===== themed AWARD CERTIFICATE (navy + gold, shareable 4:5) ===== */
   #cardWrap{display:flex;justify-content:center;}
-  #cardShot{width:100%;max-width:400px;aspect-ratio:4/5;position:relative;border-radius:20px;overflow:hidden;
+  #cardShot{width:100%;max-width:380px;position:relative;border-radius:20px;overflow:hidden;
     background:radial-gradient(120% 80% at 50% 0%,#173a54 0%,#0f2b40 45%,#0b2033 100%);
     box-shadow:0 24px 70px rgba(0,0,0,.5);}
-  #cardShot .cframe{position:absolute;inset:11px;border:1.5px solid rgba(214,178,94,.6);border-radius:14px;
-    display:flex;flex-direction:column;align-items:center;text-align:center;padding:16px 20px 14px;
+  #cardShot .cframe{position:relative;margin:11px;border:1.5px solid rgba(214,178,94,.6);border-radius:14px;
+    display:flex;flex-direction:column;align-items:center;text-align:center;padding:22px 18px 18px;
     background:linear-gradient(180deg,rgba(255,255,255,.03),rgba(255,255,255,0));}
   #cardShot .cframe::before{content:"";position:absolute;inset:5px;border:1px solid rgba(214,178,94,.28);border-radius:10px;pointer-events:none;}
   #cardShot .clogo{width:87px;height:auto;margin-bottom:4px;filter:drop-shadow(0 2px 8px rgba(0,0,0,.4));}
@@ -214,7 +214,7 @@
   #cardShot .cname{font-family:var(--serif);font-weight:600;font-size:23px;color:#F3E7C6;margin-top:2px;line-height:1.1;}
   #cardShot .cmot{color:#cdd9e6;font-size:12.5px;line-height:1.45;font-style:italic;margin-top:8px;max-width:30ch;}
   #cardShot .cdivider{width:64px;height:2px;margin:11px 0 9px;background:linear-gradient(90deg,transparent,#D6B25E,transparent);}
-  #cardShot .cfoot{margin-top:auto;width:100%;display:flex;justify-content:space-between;align-items:flex-end;}
+  #cardShot .cfoot{margin-top:20px;width:100%;display:flex;justify-content:space-between;align-items:flex-end;gap:10px;}
   #cardShot .cfoot-col{display:flex;flex-direction:column;text-align:left;}
   #cardShot .cfoot-col.right{text-align:right;}
   #cardShot .cfoot-lab{color:#8ea3b8;font-size:10px;letter-spacing:1.5px;text-transform:uppercase;font-weight:700;}
@@ -547,9 +547,9 @@ var PFC_LOGO='assets/pfc-logo-white.png';
    members know when a theme they missed goes live again. themeOrder maps
    program-week 1..6 -> theme id. */
 var COHORTS = [
-  { id:'C1', label:'Run 1', start:'2026-09-01', themeOrder:[1,2,3,4,5,6] },
-  { id:'C2', label:'Run 2', start:'2026-11-01', themeOrder:[1,2,3,4,5,6] },
-  { id:'C3', label:'Run 3', start:'2027-01-01', themeOrder:[1,2,3,4,5,6] }
+  { id:'C1', label:'Run 1', start:'2026-09-08', themeOrder:[1,2,3,4,5,6] },  // Week 1 = Identity, live now
+  { id:'C2', label:'Run 2', start:'2026-11-03', themeOrder:[1,2,3,4,5,6] },
+  { id:'C3', label:'Run 3', start:'2027-01-05', themeOrder:[1,2,3,4,5,6] }
 ];
 var WEEKS_TOTAL = 6;
 var DAY = 864e5;
