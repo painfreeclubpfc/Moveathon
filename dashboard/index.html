@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Move-a-thon Staff Dashboard — Pain Free Club</title>
+<!--
+  ================================================================
+  MOVE-A-THON STAFF DASHBOARD  ·  Pain Free Club · built by Bruno
+  ----------------------------------------------------------------
+  Read-only view of who has signed up and how many theme-badges each
+  member has earned across runs. This is the companion to the member
+  app (projects/trackers/moveathon-mps). It READS the same Supabase
+  tables the app writes:
+      moveathon_members  +  moveathon_badges
+  A member is done (certificate) when they hold 6 distinct theme-badges,
+  in whatever run(s) — so X (all 6 in Run 1) and Y (5 in Run 1 + 1 in
+  Run 2) both show as complete here without any special handling.
+
+  SETUP — edit CONFIG below:
+    • SUPABASE_URL + SUPABASE_ANON_KEY  -> live read.
+    • PASSCODE (optional) -> light gate so the tab isn't wide open.
+  With no keys set, the page opens on clearly-marked SAMPLE data so you
+  can see the layout. You can also load a CSV export of the Sheet
+  "Badges" tab via the "Load CSV" button (for the Sheet-backend pilot).
+
+  NOTE: the anon key can only read what the table's RLS policy allows.
+  Keep this file internal — the passcode is a deterrent, not real
+  security. For a locked-down deploy, read via a service role behind a
+  protected endpoint instead of shipping the key in the page.
+  ================================================================
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#f6f3ec; --surface:#ffffff; --surface-2:#faf7ef; --ink:#182238; --mut:#5d6675; --faint:#8b93a2;
+    --line:#e7e1d3; --line-2:#efeadd;
+    --navy:#152548; --gold:#C9A24B; --gold-d:#9c7726; --gold-soft:#f7eccd;
+    --green:#2f9e6a; --green-d:#227a51; --green-soft:#e7f5ee;
+    --blue:#3a5da8; --blue-soft:#e9eef8;
+    --serif:'Fraunces',Georgia,serif; --sans:'Manrope',-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
+    --shadow:0 6px 22px rgba(20,30,60,.06);
+  }
+  :root:not([data-theme="light"]){}
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#0c1322; --surface:#141d30; --surface-2:#101828; --ink:#eef1f7; --mut:#a3acbd; --faint:#7c8598;
+      --line:#243149; --line-2:#1c2740;
+      --navy:#dbe3f2; --gold:#e0bd6d; --gold-d:#e8cd8c; --gold-soft:#2a2410;
+      --green:#4cc088; --green-d:#7dd6ab; --green-soft:#13291f;
+      --blue:#7ea0e0; --blue-soft:#182338;
+      --shadow:0 6px 22px rgba(0,0,0,.4);
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#0c1322; --surface:#141d30; --surface-2:#101828; --ink:#eef1f7; --mut:#a3acbd; --faint:#7c8598;
+    --line:#243149; --line-2:#1c2740;
+    --navy:#dbe3f2; --gold:#e0bd6d; --gold-d:#e8cd8c; --gold-soft:#2a2410;
+    --green:#4cc088; --green-d:#7dd6ab; --green-soft:#13291f;
+    --blue:#7ea0e0; --blue-soft:#182338; --shadow:0 6px 22px rgba(0,0,0,.4);
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased;}
+  .wrap{max-width:1180px;margin:0 auto;padding:26px 22px 60px;}
+  a{color:inherit;}
+  h1{font-family:var(--serif);font-weight:600;font-size:30px;letter-spacing:-.3px;margin:0;}
+  .sub{color:var(--mut);margin-top:4px;font-size:15px;}
+  .eyebrow{font-size:11px;letter-spacing:2.5px;text-transform:uppercase;font-weight:800;color:var(--gold-d);}
+
+  .topbar{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:8px;}
+  .banner{background:var(--gold-soft);border:1px solid var(--gold);color:var(--gold-d);border-radius:12px;padding:10px 16px;font-weight:700;font-size:14px;margin:16px 0 0;}
+
+  /* KPI tiles */
+  .kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-top:20px;}
+  .kpi{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:18px 18px 16px;box-shadow:var(--shadow);}
+  .kpi .lab{font-size:12px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:var(--faint);}
+  .kpi .val{font-family:var(--serif);font-weight:600;font-size:38px;line-height:1;margin-top:8px;font-variant-numeric:tabular-nums;}
+  .kpi .foot{font-size:12.5px;color:var(--mut);margin-top:6px;}
+  .kpi.good .val{color:var(--green-d);}
+  .kpi.gold .val{color:var(--gold-d);}
+
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px;}
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:20px;box-shadow:var(--shadow);}
+  .card h2{font-family:var(--serif);font-weight:600;font-size:18px;margin:0 0 4px;}
+  .card .note{color:var(--faint);font-size:12.5px;margin-bottom:14px;}
+
+  /* simple magnitude bars */
+  .barrow{display:grid;grid-template-columns:120px 1fr 46px;align-items:center;gap:10px;margin:9px 0;}
+  .barrow .k{font-size:13px;font-weight:600;color:var(--mut);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .track{height:16px;background:var(--line-2);border-radius:20px;overflow:hidden;}
+  .track i{display:block;height:100%;border-radius:20px;background:linear-gradient(90deg,var(--gold),var(--gold-d));min-width:3px;}
+  .track.g i{background:linear-gradient(90deg,var(--green),var(--green-d));}
+  .barrow .v{font-size:13px;font-weight:800;text-align:right;font-variant-numeric:tabular-nums;color:var(--ink);}
+
+  /* controls */
+  .controls{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:22px 0 12px;}
+  .controls input,.controls select{font-family:var(--sans);font-size:14px;padding:10px 12px;border:1.5px solid var(--line);border-radius:10px;background:var(--surface);color:var(--ink);}
+  .controls input{flex:1;min-width:200px;}
+  .controls input:focus,.controls select:focus{outline:none;border-color:var(--gold);}
+  .btn{font-family:var(--sans);font-weight:700;font-size:14px;padding:10px 16px;border-radius:10px;border:1.5px solid var(--line);background:var(--surface);color:var(--ink);cursor:pointer;}
+  .btn:hover{border-color:var(--gold);}
+  .btn.primary{background:var(--navy);color:var(--bg);border-color:var(--navy);}
+
+  /* table */
+  .tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:16px;background:var(--surface);box-shadow:var(--shadow);}
+  table{border-collapse:collapse;width:100%;min-width:820px;}
+  th,td{text-align:left;padding:13px 14px;border-bottom:1px solid var(--line-2);font-size:14px;vertical-align:middle;}
+  th{font-size:11.5px;letter-spacing:.6px;text-transform:uppercase;color:var(--faint);font-weight:800;background:var(--surface-2);position:sticky;top:0;}
+  tr.mrow{cursor:pointer;}
+  tr.mrow:hover{background:var(--surface-2);}
+  td .nm{font-weight:700;}
+  td .contact{color:var(--mut);font-size:12.5px;}
+  .dots{display:inline-flex;gap:4px;}
+  .dot{width:15px;height:15px;border-radius:50%;background:var(--line);border:1px solid var(--line);}
+  .dot.on{background:var(--gold);border-color:var(--gold-d);}
+  .pill{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:800;padding:4px 10px;border-radius:20px;}
+  .pill.active{background:var(--blue-soft);color:var(--blue);}
+  .pill.grad{background:var(--green-soft);color:var(--green-d);}
+  .star{color:var(--gold-d);font-weight:800;}
+  .num{font-variant-numeric:tabular-nums;}
+  .detail td{background:var(--surface-2);padding:0;}
+  .detailinner{padding:14px 18px 18px;}
+  .themeline{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-top:8px;}
+  .tbadge{border:1px solid var(--line);border-radius:12px;padding:10px 12px;background:var(--surface);}
+  .tbadge.miss{opacity:.55;border-style:dashed;}
+  .tbadge .t{font-weight:700;font-size:13.5px;}
+  .tbadge .m{font-size:12px;color:var(--mut);margin-top:2px;}
+  .empty{padding:40px;text-align:center;color:var(--mut);}
+
+  /* passcode gate */
+  #gate{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:50;}
+  #gate[hidden]{display:none;}
+  #gate .box{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:30px;max-width:360px;width:90%;box-shadow:var(--shadow);text-align:center;}
+  #gate input{width:100%;font-size:16px;padding:14px;border:2px solid var(--line);border-radius:12px;margin-top:14px;background:var(--surface);color:var(--ink);}
+  #gate .btn{margin-top:14px;width:100%;}
+  .foot{color:var(--faint);font-size:12px;text-align:center;margin-top:30px;}
+  @media(max-width:840px){ .kpis{grid-template-columns:repeat(2,1fr);} .grid2{grid-template-columns:1fr;} }
+</style>
+</head>
+<body>
+
+<div id="gate" hidden><div class="box">
+  <div class="eyebrow">Staff only</div>
+  <h1 style="font-size:22px;margin-top:6px">Move-a-thon Dashboard</h1>
+  <input id="gateInput" type="password" placeholder="Enter passcode" autocomplete="off">
+  <button class="btn primary" id="gateBtn">Open dashboard</button>
+</div></div>
+
+<div class="wrap">
+  <div class="topbar">
+    <div>
+      <div class="eyebrow">Pain Free Club</div>
+      <h1>Move-a-thon Dashboard</h1>
+      <div class="sub">Who's signed up, and how far along their 6-badge journey is.</div>
+    </div>
+    <div style="display:flex;gap:10px;">
+      <button class="btn" id="csvLoadBtn">Load CSV</button>
+      <input id="csvFile" type="file" accept=".csv" hidden>
+      <button class="btn" id="exportBtn">Export CSV</button>
+      <button class="btn" id="refreshBtn">↻ Refresh</button>
+    </div>
+  </div>
+  <div id="srcBanner" class="banner" hidden></div>
+
+  <div class="kpis" id="kpis"></div>
+
+  <div class="grid2">
+    <div class="card">
+      <h2>Badges earned</h2>
+      <div class="note">How many members hold each number of the 6 badges. The 6-column is certificate-ready.</div>
+      <div id="distBars"></div>
+    </div>
+    <div class="card">
+      <h2>Theme coverage</h2>
+      <div class="note">How many members have earned each theme. Low bars show where people drop off.</div>
+      <div id="themeBars"></div>
+    </div>
+  </div>
+
+  <div class="controls">
+    <input id="search" placeholder="Search name, email or phone…">
+    <select id="fCohort"><option value="">All runs</option></select>
+    <select id="fStatus">
+      <option value="">All statuses</option>
+      <option value="active">In progress</option>
+      <option value="grad">Certificate-ready (6/6)</option>
+      <option value="distinction">With distinction</option>
+    </select>
+    <span class="sub num" id="count"></span>
+  </div>
+
+  <div class="tablewrap">
+    <table>
+      <thead><tr>
+        <th>Member</th><th>Joined</th><th>Badges</th><th class="num">Avg score</th><th>Status</th><th>Distinction</th>
+      </tr></thead>
+      <tbody id="tbody"></tbody>
+    </table>
+  </div>
+
+  <p class="foot">A member is certificate-ready when they hold all 6 theme-badges — earned in any run(s). Distinction = best-4-of-6 average ≥ 75 (internal only).</p>
+</div>
+
+<script>
+/* ================= CONFIG ================= */
+var CONFIG = {
+  SUPABASE_URL:      '',   // e.g. https://xxxx.supabase.co
+  SUPABASE_ANON_KEY: '',
+  MEMBERS_TABLE:     'moveathon_members',
+  BADGES_TABLE:      'moveathon_badges',
+  PASSCODE:          '',   // optional light gate; '' = no gate
+  DISTINCTION_THRESHOLD: 75
+};
+var THEME_ORDER = [1,2,3,4,5,6]; // display order for theme coverage
+
+/* ================= sample data (shown when no backend configured) ================= */
+function sampleData(){
+  var members=[
+    {member_id:'x@ex.com',name:'Asha Verma',phone:'919800000001',cohort_joined:'C1',join_program_week:1},
+    {member_id:'y@ex.com',name:'Ravi Nair',phone:'919800000002',cohort_joined:'C1',join_program_week:2},
+    {member_id:'p@ex.com',name:'Meena Rao',phone:'919800000003',cohort_joined:'C1',join_program_week:1},
+    {member_id:'q@ex.com',name:'John Miller',phone:'15551230004',cohort_joined:'C1',join_program_week:3},
+    {member_id:'r@ex.com',name:'Fatima Al Zahra',phone:'971500000005',cohort_joined:'C2',join_program_week:1}
+  ];
+  var TN=['Strength','Clarity','Mobility','Balance','Endurance','Freedom'];
+  function b(m,t,c,wk,s){return {member_id:m,theme_id:t,theme_name:TN[t-1],cohort_id:c,program_week:wk,score:s};}
+  var badges=[];
+  // X: all 6 in C1
+  [ [1,1,72],[2,2,80],[3,3,76],[4,4,84],[5,5,88],[6,6,92] ].forEach(function(r){badges.push(b('x@ex.com',r[0],'C1',r[1],r[2]));});
+  // Y: themes 2-6 in C1, then theme 1 in C2 (spans the break) => complete
+  [ [2,2,60],[3,3,64],[4,4,72],[5,5,78],[6,6,80] ].forEach(function(r){badges.push(b('y@ex.com',r[0],'C1',r[1],r[2]));});
+  badges.push(b('y@ex.com',1,'C2',1,66));
+  // Meena: 4 badges so far
+  [ [1,1,55],[2,2,60],[3,3,65],[4,4,70] ].forEach(function(r){badges.push(b('p@ex.com',r[0],'C1',r[1],r[2]));});
+  // John: joined wk3, 3 badges
+  [ [3,3,50],[4,4,55],[5,5,60] ].forEach(function(r){badges.push(b('q@ex.com',r[0],'C1',r[1],r[2]));});
+  // Fatima: brand new in C2, 1 badge
+  badges.push(b('r@ex.com',1,'C2',1,74));
+  return {members:members, badges:badges};
+}
+
+/* ================= data load ================= */
+var STATE={members:[], badges:[], sample:false};
+function hasSupabase(){ return CONFIG.SUPABASE_URL && CONFIG.SUPABASE_ANON_KEY; }
+function sbHeaders(){ return {'apikey':CONFIG.SUPABASE_ANON_KEY,'Authorization':'Bearer '+CONFIG.SUPABASE_ANON_KEY}; }
+function sbGet(table){ return fetch(CONFIG.SUPABASE_URL.replace(/\/$/,'')+'/rest/v1/'+table+'?select=*', {headers:sbHeaders()}).then(function(r){ if(!r.ok) throw 0; return r.json(); }); }
+
+function loadData(){
+  if(hasSupabase()){
+    banner('');
+    Promise.all([sbGet(CONFIG.MEMBERS_TABLE), sbGet(CONFIG.BADGES_TABLE)])
+      .then(function(res){ STATE.members=res[0]||[]; STATE.badges=res[1]||[]; STATE.sample=false; render(); })
+      .catch(function(){ banner('Could not reach Supabase — check the URL / anon key / RLS. Showing sample data.'); useSample(); });
+  } else { useSample(); }
+}
+function useSample(){ var s=sampleData(); STATE.members=s.members; STATE.badges=s.badges; STATE.sample=true;
+  banner('SAMPLE DATA — add your Supabase URL + anon key in CONFIG (or Load CSV) to see live members.'); render(); }
+function banner(msg){ var b=document.getElementById('srcBanner'); if(!msg){ b.hidden=true; return; } b.hidden=false; b.textContent=msg; }
+
+/* ================= derive per-member ================= */
+function byMember(){
+  var map={};
+  STATE.members.forEach(function(m){ map[m.member_id]={info:m, badges:[]}; });
+  STATE.badges.forEach(function(bd){
+    if(!map[bd.member_id]) map[bd.member_id]={info:{member_id:bd.member_id,name:bd.name||bd.member_id,phone:bd.phone||''}, badges:[]};
+    map[bd.member_id].badges.push(bd);
+  });
+  return Object.keys(map).map(function(id){
+    var e=map[id]; var themes={}; e.badges.forEach(function(b){ themes[b.theme_id]=b; });
+    var ids=Object.keys(themes).map(Number);
+    var scores=ids.map(function(t){return +themes[t].score||0;});
+    var best4=scores.slice().sort(function(a,b){return b-a;}).slice(0,4);
+    var best4avg=best4.length?Math.round(best4.reduce(function(a,b){return a+b;},0)/best4.length):0;
+    var avg=scores.length?Math.round(scores.reduce(function(a,b){return a+b;},0)/scores.length):0;
+    var cohorts={}; e.badges.forEach(function(b){ if(b.cohort_id) cohorts[b.cohort_id]=1; });
+    return { id:id, name:e.info.name||id, phone:e.info.phone||'', joinedCohort:e.info.cohort_joined||Object.keys(cohorts)[0]||'—',
+      joinWeek:e.info.join_program_week||null, themes:themes, count:ids.length, avg:avg, best4avg:best4avg,
+      graduated:ids.length>=6, distinction:(ids.length>=6 && best4avg>=CONFIG.DISTINCTION_THRESHOLD),
+      cohorts:Object.keys(cohorts) };
+  }).sort(function(a,b){ return b.count-a.count || (a.name>b.name?1:-1); });
+}
+
+/* ================= render ================= */
+var expanded={};
+function render(){
+  var rows=byMember();
+  // cohort filter options
+  var cohortsSet={}; rows.forEach(function(r){ r.cohorts.forEach(function(c){cohortsSet[c]=1;}); if(r.joinedCohort) cohortsSet[r.joinedCohort]=1; });
+  var sel=document.getElementById('fCohort'); var cur=sel.value;
+  sel.innerHTML='<option value="">All runs</option>'+Object.keys(cohortsSet).sort().map(function(c){return '<option>'+c+'</option>';}).join('');
+  sel.value=cur;
+
+  // KPIs
+  var total=rows.length, grad=rows.filter(function(r){return r.graduated;}).length;
+  var active=total-grad, dist=rows.filter(function(r){return r.distinction;}).length;
+  var avgBadges=total?(rows.reduce(function(a,r){return a+r.count;},0)/total):0;
+  document.getElementById('kpis').innerHTML=[
+    kpi('Members', total, 'signed up'),
+    kpi('In progress', active, 'still collecting badges',''),
+    kpi('Certificate-ready', grad, 'hold all 6 badges','good'),
+    kpi('With distinction', dist, 'best-4 avg ≥ '+CONFIG.DISTINCTION_THRESHOLD,'gold'),
+    kpi('Avg badges', avgBadges.toFixed(1), 'per member','')
+  ].join('');
+
+  // distribution 0..6
+  var dist6=[0,0,0,0,0,0,0]; rows.forEach(function(r){ dist6[Math.min(6,r.count)]++; });
+  var maxD=Math.max(1,Math.max.apply(null,dist6));
+  document.getElementById('distBars').innerHTML=dist6.map(function(n,i){
+    return bar((i===6?'6 badges ✓':i+' badge'+(i===1?'':'s')), n, maxD, i===6);
+  }).join('');
+
+  // theme coverage
+  var tn={}, tc={}; STATE.badges.forEach(function(b){ tc[b.theme_id]=(tc[b.theme_id]||0)+1; if(b.theme_name) tn[b.theme_id]=b.theme_name; });
+  var maxT=Math.max(1,Math.max.apply(null, THEME_ORDER.map(function(t){return tc[t]||0;})));
+  document.getElementById('themeBars').innerHTML=THEME_ORDER.map(function(t){
+    return bar(tn[t]||('Theme '+t), tc[t]||0, maxT, false);
+  }).join('');
+
+  // table (filtered)
+  var q=(document.getElementById('search').value||'').toLowerCase().trim();
+  var fc=document.getElementById('fCohort').value, fs=document.getElementById('fStatus').value;
+  var filtered=rows.filter(function(r){
+    if(q && (r.name+' '+r.id+' '+r.phone).toLowerCase().indexOf(q)<0) return false;
+    if(fc && r.cohorts.indexOf(fc)<0 && r.joinedCohort!==fc) return false;
+    if(fs==='active' && r.graduated) return false;
+    if(fs==='grad' && !r.graduated) return false;
+    if(fs==='distinction' && !r.distinction) return false;
+    return true;
+  });
+  document.getElementById('count').textContent=filtered.length+' of '+rows.length+' members';
+  var tb=document.getElementById('tbody');
+  if(!filtered.length){ tb.innerHTML='<tr><td colspan="6" class="empty">No members match.</td></tr>'; return; }
+  tb.innerHTML=filtered.map(function(r){ return memberRow(r); }).join('');
+  filtered.forEach(function(r){
+    var tr=document.getElementById('row-'+cssId(r.id)); if(tr) tr.onclick=function(){ expanded[r.id]=!expanded[r.id]; render(); };
+  });
+}
+function kpi(lab,val,foot,cls){ return '<div class="kpi '+(cls||'')+'"><div class="lab">'+lab+'</div><div class="val num">'+val+'</div><div class="foot">'+foot+'</div></div>'; }
+function bar(k,v,max,green){ var pct=Math.round(v/max*100);
+  return '<div class="barrow" title="'+k+': '+v+'"><span class="k">'+k+'</span><span class="track'+(green?' g':'')+'"><i style="width:'+pct+'%"></i></span><span class="v num">'+v+'</span></div>'; }
+function dots(count){ var s='<span class="dots">'; for(var i=0;i<6;i++) s+='<span class="dot'+(i<count?' on':'')+'"></span>'; return s+'</span>'; }
+function cssId(id){ return id.replace(/[^a-z0-9]/gi,'_'); }
+function memberRow(r){
+  var joined=r.joinedCohort+(r.joinWeek?(' · wk '+r.joinWeek):'');
+  var status=r.graduated?'<span class="pill grad">✓ Complete</span>':'<span class="pill active">'+r.count+'/6</span>';
+  var distinction=r.distinction?'<span class="star">★ Yes</span>':'<span class="sub">—</span>';
+  var main='<tr class="mrow" id="row-'+cssId(r.id)+'">'
+    +'<td><div class="nm">'+esc(r.name)+'</div><div class="contact">'+esc(r.id)+(r.phone?(' · +'+esc(r.phone)):'')+'</div></td>'
+    +'<td>'+joined+'</td>'
+    +'<td>'+dots(r.count)+'</td>'
+    +'<td class="num">'+(r.count?r.avg:'—')+'</td>'
+    +'<td>'+status+'</td>'
+    +'<td>'+distinction+'</td></tr>';
+  if(!expanded[r.id]) return main;
+  var TN=['Strength','Clarity','Mobility','Balance','Endurance','Freedom'];
+  var cells='';
+  for(var t=1;t<=6;t++){ var b=r.themes[t];
+    var name=(b&&b.theme_name)||TN[t-1]||('Theme '+t);
+    cells+= b ? '<div class="tbadge"><div class="t">'+esc(name)+'</div><div class="m">'+b.score+'/100 · '+esc(b.cohort_id||'')+' wk '+(b.program_week||'?')+'</div></div>'
+              : '<div class="tbadge miss"><div class="t">'+esc(name)+'</div><div class="m">not earned yet</div></div>';
+  }
+  return main+'<tr class="detail"><td colspan="6"><div class="detailinner">'
+    +'<div class="sub">Best-4 avg '+r.best4avg+' · earned in run(s): '+ (r.cohorts.join(', ')||'—') +'</div>'
+    +'<div class="themeline">'+cells+'</div></div></td></tr>';
+}
+function esc(s){ return (''+s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
+
+/* ================= CSV load + export ================= */
+document.getElementById('csvLoadBtn').onclick=function(){ document.getElementById('csvFile').click(); };
+document.getElementById('csvFile').onchange=function(e){ var f=e.target.files[0]; if(!f) return; var rd=new FileReader();
+  rd.onload=function(){ try{ ingestBadgesCsv(rd.result); banner('Loaded from CSV file: '+f.name); render(); }catch(err){ alert('Could not parse that CSV.'); } }; rd.readAsText(f); };
+function ingestBadgesCsv(text){
+  var rows=parseCsv(text); if(rows.length<2) return; var head=rows[0].map(function(h){return h.trim().toLowerCase();});
+  function col(names){ for(var i=0;i<names.length;i++){ var x=head.indexOf(names[i]); if(x>=0) return x; } return -1; }
+  var ci={member:col(['member (email)','member_id','email']), name:col(['name']), phone:col(['phone']),
+    theme_id:col(['theme id','theme_id']), theme:col(['theme','theme_name']), cohort:col(['cohort','cohort_id']),
+    week:col(['program week','program_week']), score:col(['score'])};
+  var badges=[]; var membersMap={};
+  rows.slice(1).forEach(function(r){ if(!r.length||!r[ci.member]) return;
+    var id=(r[ci.member]||'').trim().toLowerCase(); if(!id) return;
+    badges.push({member_id:id, name:r[ci.name], phone:r[ci.phone], theme_id:+r[ci.theme_id], theme_name:r[ci.theme],
+      cohort_id:r[ci.cohort], program_week:+r[ci.week], score:+r[ci.score]});
+    membersMap[id]={member_id:id,name:r[ci.name],phone:r[ci.phone]};
+  });
+  STATE.members=Object.keys(membersMap).map(function(k){return membersMap[k];}); STATE.badges=badges; STATE.sample=false;
+}
+function parseCsv(t){ var rows=[],row=[],cur='',q=false; for(var i=0;i<t.length;i++){ var c=t[i];
+  if(q){ if(c==='"'){ if(t[i+1]==='"'){cur+='"';i++;} else q=false; } else cur+=c; }
+  else { if(c==='"') q=true; else if(c===','){row.push(cur);cur='';} else if(c==='\n'){row.push(cur);rows.push(row);row=[];cur='';} else if(c==='\r'){} else cur+=c; } }
+  if(cur.length||row.length){ row.push(cur); rows.push(row); } return rows; }
+
+document.getElementById('exportBtn').onclick=function(){
+  var rows=byMember(); var head=['name','email','phone','joined_cohort','join_week','badges_earned','avg_score','best4_avg','status','distinction','cohorts'];
+  var lines=[head.join(',')];
+  rows.forEach(function(r){ lines.push([q(r.name),q(r.id),q(r.phone),r.joinedCohort,r.joinWeek||'',r.count,r.avg,r.best4avg,
+    r.graduated?'complete':'in_progress', r.distinction?'yes':'no', q(r.cohorts.join(' '))].join(',')); });
+  function q(s){ s=(''+ (s==null?'':s)); return /[",\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s; }
+  var blob=new Blob([lines.join('\n')],{type:'text/csv'}); var a=document.createElement('a');
+  a.href=URL.createObjectURL(blob); a.download='move-a-thon-members.csv'; document.body.appendChild(a); a.click(); a.remove();
+};
+document.getElementById('refreshBtn').onclick=loadData;
+['search','fCohort','fStatus'].forEach(function(id){ document.getElementById(id).addEventListener('input', render); });
+
+/* ================= passcode gate ================= */
+function boot(){ loadData(); }
+if(CONFIG.PASSCODE){
+  var g=document.getElementById('gate'); g.hidden=false;
+  function tryOpen(){ if(document.getElementById('gateInput').value===CONFIG.PASSCODE){ g.hidden=true; boot(); } else { document.getElementById('gateInput').value=''; document.getElementById('gateInput').placeholder='Wrong — try again'; } }
+  document.getElementById('gateBtn').onclick=tryOpen;
+  document.getElementById('gateInput').addEventListener('keydown',function(e){ if(e.key==='Enter') tryOpen(); });
+} else { boot(); }
+</script>
+</body>
+</html>

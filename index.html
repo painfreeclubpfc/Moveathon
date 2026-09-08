@@ -1,0 +1,954 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Move-a-thon Progress Score — Pain Free Club</title>
+<!--
+  ================================================================
+  MOVEATHON PROGRESS SCORE (MPS) — weekly member app  ·  v2
+  Pain Free Club · single self-contained file · built by Bruno
+  ----------------------------------------------------------------
+  A rolling 6-week program for Silver members. Each week carries a
+  THEME; completing that week's score earns a themed BADGE the member
+  posts as their win. The certificate needs all 6 theme-badges.
+
+  TWO CLOCKS (this is how X and Y are segregated):
+    • Program clock (a COHORT / run): fixed dates, delivers themes
+      1..6 over 6 weeks, live for everyone in that run.
+    • Member clock (their journey): each member must earn all 6
+      theme-badges — in whatever runs it takes.
+  A member who joins mid-run earns the themes that are live from then
+  on, then fills the theme(s) they missed in the NEXT run (after the
+  15-20 day break). Nothing is keyed to a global week number — every
+  badge is keyed to (member + theme), so the same code handles the
+  day-1 joiner and the mid-run joiner alike.
+
+  DOSAGE RULES (the 6 weeks are a dose, not a video library):
+    • A badge can only be earned for the theme LIVE this week. No
+      backfilling a past theme from a recording.
+    • One badge per real calendar week.
+    • Out-of-order completion across runs is allowed.
+
+  SETUP — edit the CONFIG / THEMES / COHORTS blocks in the <script>:
+    1. THEMES   -> the 6 theme names (rename freely; ids stay 1..6).
+    2. COHORTS  -> each run's id, label, start date and theme order.
+                   List the CURRENT run AND upcoming runs so returning
+                   members know when a missing theme goes live again.
+    3. SANYA_WHATSAPP / COMMUNITY_URL -> video submission options.
+    4. Backend (recommended: Supabase) -> SUPABASE_URL + ANON_KEY so a
+       member returning weeks later / on a new phone is restored by
+       email. Google Sheet webhook is a write-only single-run fallback.
+
+  Self-assessment for coaching & motivation, not a medical diagnosis.
+  ================================================================
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<style>
+  :root{
+    /* NOCTURNE — dark aurora glass (single, committed visual world) */
+    --bg:#060B18; --bg2:#0A1226;
+    --navy:#EAF0FF; --navy-d:#070E1F; --royal:#8B7BFF; --blue:#6C63FF;
+    --cyan:#38E1D0; --indigo:#6C63FF; --violet:#8B7BFF;
+    --gold:#38E1D0; --gold-l:#6C63FF; --gold-h:#8FF3E9; --gold-d:#6FE9DB;
+    --ink:#EAF0FF; --mut:#9AA6C4; --faint:#66728F;
+    --line:rgba(255,255,255,.12); --tint:rgba(255,255,255,.05); --cream:#060B18; --white:#fff;
+    --red:#FF6B6B; --amber:#F5C25B; --green:#3DE29A; --green-d:#8CE9BE;
+    --glass:rgba(255,255,255,.05); --glass-2:rgba(255,255,255,.09); --glass-brd:rgba(255,255,255,.14);
+    --serif:'Sora',system-ui,sans-serif;
+    --sans:'Inter',-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  html{scroll-behavior:smooth;}
+  body{font-family:var(--sans);color:var(--ink);line-height:1.55;background:var(--cream);
+    font-size:18px;-webkit-font-smoothing:antialiased;overflow-x:hidden;}
+  img{max-width:100%;display:block;}
+  [hidden]{display:none!important;}
+  h1,h2,h3,h4,p{overflow-wrap:break-word;}
+  h1,h2{text-wrap:balance;} .lead,.muted,.hint{text-wrap:pretty;}
+  @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important;}}
+  .wrap{max-width:640px;margin:0 auto;padding:0 20px;}
+  .view{display:none;}
+  .view.active{display:block;animation:fade .35s ease;}
+  @keyframes fade{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:none;}}
+
+  .top{position:sticky;top:0;z-index:30;background:var(--navy-d);border-bottom:2px solid var(--gold);color:#fff;}
+  .top .wrap{display:flex;align-items:center;gap:12px;padding:14px 20px;}
+  .top .gem{width:26px;height:26px;flex:0 0 auto;}
+  .top b{font-weight:800;letter-spacing:.5px;font-size:16px;}
+  .top .tag{margin-left:auto;color:var(--gold-l);font-size:12px;letter-spacing:2px;text-transform:uppercase;font-weight:800;}
+
+  h1{font-family:var(--serif);font-weight:600;font-size:30px;line-height:1.12;letter-spacing:-.4px;color:var(--navy);}
+  h2{font-family:var(--serif);font-weight:600;font-size:23px;line-height:1.2;color:var(--navy);}
+  .eyebrow{font-size:12.5px;letter-spacing:2.5px;text-transform:uppercase;font-weight:800;color:var(--gold-d);}
+  .lead{color:var(--mut);font-size:17px;line-height:1.5;margin-top:8px;}
+
+  .btn{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;
+    background:linear-gradient(135deg,var(--gold-h),var(--gold) 45%,var(--gold-d));color:#2a1e05;
+    font-family:var(--sans);font-weight:800;font-size:18px;padding:16px 24px;border-radius:14px;border:none;
+    cursor:pointer;box-shadow:0 8px 20px rgba(201,162,75,.3);
+    transition-property:scale,box-shadow,background,opacity;transition-duration:.13s;transition-timing-function:cubic-bezier(.2,0,0,1);min-height:54px;}
+  .btn:hover{box-shadow:0 12px 26px rgba(201,162,75,.42);}
+  .btn:active{scale:.96;}
+  .btn[disabled]{opacity:.5;cursor:default;scale:1;box-shadow:none;}
+  .btn.secondary{background:#fff;color:var(--navy);border:2px solid var(--line);box-shadow:none;}
+  .btn.ghost{background:transparent;color:var(--mut);border:2px solid var(--line);box-shadow:none;font-weight:700;}
+  .btn.wa{background:#25D366;color:#04310f;box-shadow:0 8px 20px rgba(37,211,102,.28);}
+  .btn.big{font-size:20px;padding:19px;min-height:60px;}
+  .btnrow{display:flex;gap:12px;margin-top:20px;}
+  .btnrow .btn{flex:1;}
+
+  .panel{background:#fff;border:1px solid var(--line);border-radius:18px;padding:20px;box-shadow:0 6px 22px rgba(20,30,60,.06);margin-top:16px;}
+  .field{margin-top:16px;}
+  .field label{display:block;font-weight:700;font-size:18px;color:var(--navy);margin-bottom:8px;}
+  .field input{width:100%;font-family:var(--sans);font-size:19px;padding:16px;border:2px solid var(--line);border-radius:14px;color:var(--ink);background:#fff;min-height:58px;}
+  .field input:focus{outline:none;border-color:var(--gold);}
+  .hint{color:var(--mut);font-size:15px;margin-top:6px;}
+  .phonerow{display:flex;gap:10px;}
+  .phonerow select{flex:0 0 128px;font-family:var(--sans);font-size:18px;padding:16px 12px;border:2px solid var(--line);border-radius:14px;background:#fff;color:var(--ink);min-height:58px;}
+  .phonerow select:focus{outline:none;border-color:var(--gold);}
+  .phonerow input{flex:1;min-width:0;}
+
+  .opts{display:flex;flex-direction:column;gap:12px;margin-top:6px;}
+  .opt{display:flex;align-items:center;gap:16px;width:100%;text-align:left;cursor:pointer;background:#fff;border:2.5px solid var(--line);
+    border-radius:14px;padding:16px 18px;color:var(--ink);font-size:18px;font-weight:600;font-family:var(--sans);min-height:60px;
+    transition-property:border-color,background,scale;transition-duration:.13s;transition-timing-function:cubic-bezier(.2,0,0,1);}
+  .opt:hover{border-color:var(--gold-l);}
+  .opt:active{scale:.98;}
+  .opt .tick{flex:0 0 auto;width:30px;height:30px;border-radius:50%;border:2.5px solid #cdbf9a;display:inline-flex;align-items:center;justify-content:center;transition:all .15s;}
+  .opt .tick svg{width:16px;height:16px;opacity:0;transform:scale(.4);transition:all .15s;}
+  .opt.sel{border-color:var(--gold);background:#fdf8ec;}
+  .opt.sel .tick{background:var(--gold);border-color:var(--gold);}
+  .opt.sel .tick svg{opacity:1;transform:scale(1);}
+
+  .check{display:flex;align-items:center;gap:16px;width:100%;text-align:left;cursor:pointer;background:#fff;border:2.5px solid var(--line);
+    border-radius:14px;padding:16px 18px;margin-top:10px;font-size:18px;font-weight:600;min-height:60px;
+    transition-property:border-color,background,scale;transition-duration:.13s;transition-timing-function:cubic-bezier(.2,0,0,1);}
+  .check:active{scale:.98;}
+  .check .box{flex:0 0 auto;width:32px;height:32px;border-radius:9px;border:2.5px solid #cdbf9a;display:inline-flex;align-items:center;justify-content:center;transition:all .15s;}
+  .check .box svg{width:20px;height:20px;opacity:0;transition:opacity .15s;}
+  .check.sel{border-color:var(--green);background:#f0faf5;}
+  .check.sel .box{background:var(--green);border-color:var(--green);}
+  .check.sel .box svg{opacity:1;}
+  .check small{display:block;color:var(--mut);font-weight:600;font-size:15px;}
+
+  .stepper{display:flex;align-items:center;justify-content:center;gap:18px;margin-top:14px;}
+  .stepper button{width:66px;height:66px;border-radius:50%;border:2.5px solid var(--gold);background:#fff;color:var(--gold-d);font-size:34px;font-weight:800;cursor:pointer;line-height:1;display:flex;align-items:center;justify-content:center;}
+  .stepper button{transition:scale .12s cubic-bezier(.2,0,0,1),background .12s;}
+  .stepper button:active{background:#fdf8ec;scale:.94;}
+  .stepper .val{font-family:var(--serif);font-weight:600;font-size:54px;color:var(--navy);min-width:96px;text-align:center;font-variant-numeric:tabular-nums;}
+
+  .scale{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-top:12px;}
+  .scale button{aspect-ratio:1;border:2.5px solid var(--line);background:#fff;border-radius:13px;font-size:20px;font-weight:800;color:var(--navy);cursor:pointer;min-height:52px;transition:scale .12s cubic-bezier(.2,0,0,1),background .12s,border-color .12s;}
+  .scale button:active{scale:.94;}
+  .scale button.sel{background:var(--navy);border-color:var(--navy);color:#fff;}
+
+  .pbar{height:12px;border-radius:20px;background:#eee6d3;overflow:hidden;margin:10px 0 4px;}
+  .pbar i{display:block;height:100%;background:linear-gradient(90deg,var(--gold-l),var(--gold));border-radius:20px;transition:width .4s cubic-bezier(.4,0,.2,1);}
+  .step-meta{display:flex;justify-content:space-between;font-size:14px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--gold-d);}
+
+  .dialwrap{position:relative;width:172px;height:172px;margin:2px auto;}
+  .dialwrap svg{width:100%;height:100%;transform:rotate(-90deg);}
+  .dialwrap .num{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;}
+  .dialwrap .num b{font-family:var(--serif);font-weight:600;font-size:46px;color:var(--navy);line-height:1;font-variant-numeric:tabular-nums;}
+  .dialwrap .num span{font-size:12px;letter-spacing:1.5px;text-transform:uppercase;font-weight:800;color:var(--mut);margin-top:4px;}
+  .bandlbl{display:inline-block;font-weight:800;font-size:16px;padding:8px 18px;border-radius:30px;margin-top:6px;}
+
+  /* theme strip — the 6 themes, earned or locked */
+  .themestrip{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-top:8px;}
+  .th{display:flex;align-items:center;gap:12px;padding:14px 14px;border-radius:14px;border:2px solid var(--line);background:#fff;}
+  .th.earned{border-color:var(--green);background:#f0faf5;}
+  .th.live{border-color:var(--gold);background:#fdf8ec;}
+  .th .ic{width:30px;height:30px;flex:0 0 auto;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;background:#eee6d3;color:#9a8a63;}
+  .th.earned .ic{background:var(--green);color:#fff;}
+  .th.live .ic{background:var(--gold);color:#2a1e05;}
+  .th .nm{font-weight:700;font-size:16px;line-height:1.15;}
+  .th .st{display:block;font-size:12px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--mut);}
+  .th.earned .st{color:var(--green-d);}
+
+  .pill{display:flex;align-items:center;gap:14px;padding:14px 0;border-bottom:1px solid var(--line);}
+  .pill:last-child{border-bottom:none;}
+  .pill .name{font-weight:700;font-size:18px;flex:1;}
+  .pill .bar{flex:0 0 120px;height:12px;border-radius:20px;background:#eee6d3;overflow:hidden;}
+  .pill .bar i{display:block;height:100%;background:var(--gold);border-radius:20px;}
+  .pill .pts{flex:0 0 58px;text-align:right;font-weight:800;color:var(--navy);}
+
+  .goalbox{background:#fdf8ec;border:1px solid var(--gold-l);border-radius:14px;padding:14px 18px;margin-top:14px;}
+  .goalbox .eyebrow{font-size:12px;}
+  .goalbox p{font-family:var(--serif);font-style:italic;font-size:21px;color:var(--navy);margin-top:6px;}
+
+  .callout{background:#eef3fb;border:1px solid #cfe0f6;border-radius:14px;padding:14px 18px;margin-top:14px;color:var(--royal);font-weight:600;font-size:16px;line-height:1.45;}
+
+  .center{text-align:center;}
+  .mt8{margin-top:8px;} .mt16{margin-top:16px;} .mt24{margin-top:24px;}
+  .muted{color:var(--mut);font-size:16px;}
+  .divider{height:1px;background:var(--line);margin:22px 0;}
+  .footnote{color:var(--mut);font-size:13px;text-align:center;padding:20px 20px 30px;line-height:1.6;}
+  .pagepad{padding:20px 0 32px;}
+  .mt24{margin-top:20px;} .mt16{margin-top:14px;}
+
+  /* ===== themed AWARD CERTIFICATE (navy + gold, shareable 4:5) ===== */
+  #cardWrap{display:flex;justify-content:center;}
+  #cardShot{width:100%;max-width:400px;aspect-ratio:4/5;position:relative;border-radius:20px;overflow:hidden;
+    background:radial-gradient(120% 80% at 50% 0%,#173a54 0%,#0f2b40 45%,#0b2033 100%);
+    box-shadow:0 24px 70px rgba(0,0,0,.5);}
+  #cardShot .cframe{position:absolute;inset:11px;border:1.5px solid rgba(214,178,94,.6);border-radius:14px;
+    display:flex;flex-direction:column;align-items:center;text-align:center;padding:16px 20px 14px;
+    background:linear-gradient(180deg,rgba(255,255,255,.03),rgba(255,255,255,0));}
+  #cardShot .cframe::before{content:"";position:absolute;inset:5px;border:1px solid rgba(214,178,94,.28);border-radius:10px;pointer-events:none;}
+  #cardShot .clogo{width:58px;height:auto;margin-bottom:4px;filter:drop-shadow(0 2px 8px rgba(0,0,0,.4));}
+  #cardShot .ceyebrow{color:#E7C979;font-weight:800;letter-spacing:4px;font-size:10.5px;text-transform:uppercase;}
+  #cardShot .cmedalimg{margin:8px 0 4px;flex:0 1 auto;display:flex;align-items:center;justify-content:center;}
+  #cardShot .cmedalimg img{width:124px;height:124px;object-fit:contain;filter:drop-shadow(0 10px 22px rgba(0,0,0,.5));}
+  #cardShot .medalFallback{width:124px;height:124px;border-radius:50%;
+    background:radial-gradient(circle at 50% 35%,#F6E3A6,#D6B25E 55%,#9c7726);
+    box-shadow:inset 0 0 0 6px rgba(255,255,255,.25),inset 0 0 0 10px #b8912f,0 10px 22px rgba(0,0,0,.5);
+    display:flex;align-items:center;justify-content:center;}
+  #cardShot .medalFallback::after{content:"\2605";font-size:52px;color:#7a5e18;}
+  #cardShot .ctheme{font-family:var(--serif);font-weight:700;font-size:26px;line-height:1.05;color:#fff;margin:2px 0;letter-spacing:-.2px;}
+  #cardShot .cawarded{color:#9fb6c9;font-size:10.5px;letter-spacing:3px;text-transform:uppercase;font-weight:700;margin-top:8px;}
+  #cardShot .cname{font-family:var(--serif);font-weight:600;font-size:23px;color:#F3E7C6;margin-top:2px;line-height:1.1;}
+  #cardShot .cmot{color:#cdd9e6;font-size:12.5px;line-height:1.45;font-style:italic;margin-top:8px;max-width:30ch;}
+  #cardShot .cdivider{width:64px;height:2px;margin:11px 0 9px;background:linear-gradient(90deg,transparent,#D6B25E,transparent);}
+  #cardShot .cfoot{margin-top:auto;width:100%;display:flex;justify-content:space-between;align-items:flex-end;}
+  #cardShot .cfoot-col{display:flex;flex-direction:column;text-align:left;}
+  #cardShot .cfoot-col.right{text-align:right;}
+  #cardShot .cfoot-lab{color:#8ea3b8;font-size:10px;letter-spacing:1.5px;text-transform:uppercase;font-weight:700;}
+  #cardShot .cfoot-col span:not(.cfoot-lab):not(.cfoot-sig){color:#e7eef6;font-size:14px;font-weight:600;}
+  #cardShot .cfoot-sig{font-family:var(--serif);font-weight:600;font-size:16px;color:#F3E7C6;}
+
+  @media(max-width:380px){ body{font-size:17px;} h1{font-size:28px;} }
+
+  /* ============ NOCTURNE — aurora glass overrides ============ */
+  body{background:var(--bg);color:var(--ink);}
+  .aurora{position:fixed;inset:0;z-index:-1;overflow:hidden;background:
+      radial-gradient(120% 90% at 50% -10%, #0d1730 0%, #070d1c 55%, #05080f 100%);}
+  .aurora span{position:absolute;border-radius:50%;filter:blur(70px);opacity:.5;}
+  .aurora .a1{width:60vw;height:60vw;left:-15vw;top:-12vh;background:radial-gradient(circle,rgba(56,225,208,.55),transparent 68%);}
+  .aurora .a2{width:66vw;height:66vw;right:-22vw;top:18vh;background:radial-gradient(circle,rgba(108,99,255,.55),transparent 68%);}
+  .aurora .a3{width:70vw;height:70vw;left:8vw;bottom:-30vh;background:radial-gradient(circle,rgba(139,123,255,.4),transparent 70%);opacity:.4;}
+  @media(prefers-reduced-motion:no-preference){
+    .aurora .a1{animation:drift1 22s ease-in-out infinite alternate;}
+    .aurora .a2{animation:drift2 26s ease-in-out infinite alternate;}
+  }
+  @keyframes drift1{to{transform:translate(6vw,5vh) scale(1.12);}}
+  @keyframes drift2{to{transform:translate(-5vw,4vh) scale(1.1);}}
+
+  .top{background:rgba(7,14,31,.7);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border-bottom:1px solid var(--glass-brd);}
+  .top::after{content:"";position:absolute;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--cyan),var(--indigo),transparent);opacity:.7;}
+  .top b{color:#fff;} .top .gem{filter:drop-shadow(0 0 6px rgba(56,225,208,.6));}
+  .top .tag{color:var(--cyan);}
+
+  h1,h2{color:var(--ink);letter-spacing:-.5px;}
+  .eyebrow{color:var(--cyan);}
+
+  /* glass surfaces */
+  .panel,.goalbox,.callout{background:var(--glass);border:1px solid var(--glass-brd);
+    backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+    box-shadow:0 10px 40px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.06);}
+  .goalbox{background:linear-gradient(180deg,rgba(56,225,208,.10),rgba(56,225,208,.02));border-color:rgba(56,225,208,.28);}
+  .goalbox p{color:#EAF0FF;}
+  .callout{background:linear-gradient(180deg,rgba(108,99,255,.14),rgba(108,99,255,.03));border-color:rgba(108,99,255,.32);color:#DDE3FF;}
+  .callout b{color:#fff;}
+
+  /* primary button — cyan→indigo glow */
+  .btn{background:linear-gradient(120deg,var(--cyan),var(--indigo));color:#04121f;font-weight:800;
+    box-shadow:0 8px 26px rgba(56,225,208,.28),0 8px 26px rgba(108,99,255,.28),inset 0 1px 0 rgba(255,255,255,.35);}
+  .btn:hover{box-shadow:0 12px 34px rgba(56,225,208,.42),0 12px 34px rgba(108,99,255,.42);}
+  .btn.secondary,.btn.ghost{background:var(--glass);color:var(--ink);border:1px solid var(--glass-brd);
+    backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);box-shadow:none;}
+  .btn.secondary:hover,.btn.ghost:hover{border-color:var(--cyan);background:var(--glass-2);}
+  .btn.wa{background:linear-gradient(120deg,#2BE07A,#1FB894);color:#042313;}
+
+  /* inputs & selects — glass */
+  .field label{color:var(--ink);} .hint{color:var(--mut);}
+  .field input,.phonerow select{background:rgba(255,255,255,.04);border:1.5px solid var(--glass-brd);color:var(--ink);}
+  .field input::placeholder{color:var(--faint);}
+  .field input:focus,.phonerow select:focus{border-color:var(--cyan);box-shadow:0 0 0 4px rgba(56,225,208,.15);}
+  .phonerow select option{background:#0A1226;color:var(--ink);}
+
+  /* option / checklist cards — glass */
+  .opt,.check{background:var(--glass);border:1.5px solid var(--glass-brd);color:var(--ink);
+    backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);}
+  .opt:hover,.check:hover{border-color:rgba(56,225,208,.5);background:var(--glass-2);}
+  .opt .tick{border-color:rgba(255,255,255,.3);}
+  .opt.sel{border-color:var(--cyan);background:rgba(56,225,208,.12);box-shadow:0 0 0 1px rgba(56,225,208,.4),0 8px 24px rgba(56,225,208,.15);}
+  .opt.sel .tick{background:linear-gradient(120deg,var(--cyan),var(--indigo));border-color:transparent;}
+  .opt.sel .tick svg{stroke:#04121f;}
+  .check.sel{border-color:var(--green);background:rgba(61,226,154,.12);}
+  .check.sel .box{background:var(--green);border-color:var(--green);}
+  .check.sel .box svg{stroke:#04121f;}
+  .check .box{border-color:rgba(255,255,255,.3);}
+  .check small{color:var(--mut);}
+
+  /* stepper & scale */
+  .stepper button{background:var(--glass);border-color:var(--cyan);color:var(--cyan);}
+  .stepper button:active{background:rgba(56,225,208,.14);}
+  .scale button{background:var(--glass);border-color:var(--glass-brd);color:var(--ink);}
+  .scale button.sel{background:linear-gradient(120deg,var(--cyan),var(--indigo));border-color:transparent;color:#04121f;}
+  .pbar{background:rgba(255,255,255,.09);}
+  .pbar i{background:linear-gradient(90deg,var(--cyan),var(--indigo));box-shadow:0 0 12px rgba(56,225,208,.6);}
+  .step-meta{color:var(--cyan);}
+
+  /* dial — glowing ring */
+  .dialwrap svg circle:not([id]){stroke:rgba(255,255,255,.09);}
+  #homeRing,#gradRing{stroke:var(--cyan);filter:drop-shadow(0 0 7px rgba(108,99,255,.65));}
+  .dialwrap .num b{color:#fff;text-shadow:0 0 18px rgba(56,225,208,.35);}
+  .dialwrap .num span{color:var(--mut);}
+
+  /* theme strip — glass tiles */
+  .th{background:var(--glass);border:1px solid var(--glass-brd);}
+  .th .ic{background:rgba(255,255,255,.08);color:var(--mut);}
+  .th .nm{color:var(--ink);} .th .st{color:var(--faint);}
+  .th.earned{border-color:rgba(61,226,154,.5);background:rgba(61,226,154,.10);}
+  .th.earned .ic{background:linear-gradient(120deg,var(--green),#2BB98A);color:#04121f;}
+  .th.earned .st{color:var(--green-d);}
+  .th.live{border-color:var(--cyan);background:rgba(56,225,208,.10);box-shadow:0 0 0 1px rgba(56,225,208,.35),0 8px 26px rgba(56,225,208,.18);}
+  .th.live .ic{background:linear-gradient(120deg,var(--cyan),var(--indigo));color:#04121f;}
+  .th.live .st{color:var(--cyan);}
+
+  .pill{background:var(--glass);color:var(--ink);}
+  .divider{background:var(--glass-brd);}
+  .footnote{color:var(--faint);}
+  .muted{color:var(--mut);}
+
+  /* (the award certificate is navy+gold and styled above; no Nocturne override) */
+</style>
+</head>
+<body>
+
+<div class="aurora" aria-hidden="true"><span class="a1"></span><span class="a2"></span><span class="a3"></span></div>
+
+<div class="top"><div class="wrap">
+  <svg class="gem" viewBox="0 0 24 24" fill="none" stroke="#EBD08A" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12l4 6-10 12L2 9z"/><path d="M6 3l6 6 6-6M2 9h20M12 9v12"/></svg>
+  <b>Move-a-thon</b>
+  <span class="tag">Progress Score</span>
+</div></div>
+
+<main class="wrap pagepad">
+
+  <!-- ============ SIGNUP ============ -->
+  <section id="view-signup" class="view">
+    <span class="eyebrow">Welcome to the Move-a-thon</span>
+    <h1 class="mt8">Let's set up your<br>6-week journey</h1>
+    <p class="lead">One minute, once. After this you just come back each week to log your score and collect your badges.</p>
+    <form id="signupForm" class="panel" novalidate>
+      <div class="field"><label for="suName">Your name</label>
+        <input id="suName" name="name" type="text" autocomplete="name" placeholder="e.g. Sunita Sharma" required></div>
+      <div class="field"><label for="suEmail">Email</label>
+        <input id="suEmail" name="email" type="email" autocomplete="email" placeholder="you@example.com" required></div>
+      <div class="field"><label for="suPhone">Phone (WhatsApp) number</label>
+        <div class="phonerow">
+          <select id="suCC" name="cc" aria-label="Country code">
+            <option value="91" selected>🇮🇳 +91</option>
+            <option value="1">🇺🇸 +1</option>
+            <option value="44">🇬🇧 +44</option>
+            <option value="971">🇦🇪 +971</option>
+            <option value="61">🇦🇺 +61</option>
+            <option value="65">🇸🇬 +65</option>
+            <option value="64">🇳🇿 +64</option>
+            <option value="60">🇲🇾 +60</option>
+            <option value="966">🇸🇦 +966</option>
+            <option value="974">🇶🇦 +974</option>
+            <option value="973">🇧🇭 +973</option>
+            <option value="968">🇴🇲 +968</option>
+            <option value="49">🇩🇪 +49</option>
+            <option value="1c">🇨🇦 +1 (CA)</option>
+          </select>
+          <input id="suPhone" name="phone" type="tel" autocomplete="tel-national" inputmode="numeric" placeholder="mobile number" required>
+        </div>
+        <p class="hint">Just your number — pick your country code on the left. Default is India (+91).</p></div>
+      <div class="field"><label for="suGoal">One activity you want to do comfortably again by the end</label>
+        <input id="suGoal" name="goal" type="text" placeholder="e.g. climb stairs without holding the rail" required>
+        <p class="hint">Your personal goal — we check in on it weekly. It isn't scored.</p></div>
+      <button class="btn big mt24" type="submit">Start my journey &nbsp;→</button>
+      <p class="hint center mt16">Already started before? Use the same email and we'll bring your badges back.</p>
+    </form>
+  </section>
+
+  <!-- ============ HOME ============ -->
+  <section id="view-home" class="view">
+    <span class="eyebrow" id="homeHi">Welcome back</span>
+    <h1 class="mt8" id="homeTitle">Your journey</h1>
+
+    <div class="goalbox">
+      <span class="eyebrow">Your goal</span>
+      <p id="homeGoal">—</p>
+    </div>
+
+    <div class="panel center">
+      <div class="dialwrap">
+        <svg width="220" height="220" viewBox="0 0 220 220">
+          <circle cx="110" cy="110" r="92" fill="none" stroke="#eee6d3" stroke-width="18"/>
+          <circle id="homeRing" cx="110" cy="110" r="92" fill="none" stroke="#C9A24B" stroke-width="18" stroke-linecap="round" stroke-dasharray="578" stroke-dashoffset="578"/>
+        </svg>
+        <div class="num"><b id="homeNum">0</b><span>Badges of 6</span></div>
+      </div>
+      <div id="homeStatus" class="callout"></div>
+    </div>
+
+    <button class="btn big mt24" id="homeCta">Log this week →</button>
+
+    <h2 class="mt24">Your 6 badges</h2>
+    <div class="themestrip" id="themeStrip"></div>
+
+    <button class="btn secondary mt24" id="homeProgressBtn" style="display:none">See my pillar progress</button>
+    <button class="btn ghost mt16" id="homeGradBtn" style="display:none">View my certificate 🎓</button>
+
+    <p class="footnote">Signed in as <span id="homeWho"></span>. <a href="#" id="homeReset" style="color:var(--gold-d);font-weight:700">Not you?</a></p>
+  </section>
+
+  <!-- ============ WEEKLY ENTRY (wizard) ============ -->
+  <section id="view-week" class="view">
+    <div class="step-meta"><span id="stepCat">Pain</span><span id="stepCount">Step 1 of 6</span></div>
+    <div class="pbar"><i id="stepBar" style="width:16%"></i></div>
+    <div id="stepBody" style="min-height:60vh;display:flex;flex-direction:column;justify-content:center"></div>
+    <div class="btnrow">
+      <button class="btn ghost" id="stepBack" style="flex:0 0 34%">← Back</button>
+      <button class="btn" id="stepNext">Next →</button>
+    </div>
+  </section>
+
+  <!-- ============ RESULT / BADGE ============ -->
+  <section id="view-result" class="view center">
+    <span class="eyebrow" id="resTag">Badge earned</span>
+    <h1 class="mt8">Amazing, <span id="resName">friend</span>!</h1>
+    <p class="lead" id="resSay">You've earned this week's badge.</p>
+
+    <div id="cardWrap" class="mt24">
+      <div id="cardShot">
+        <div class="cframe">
+          <img class="clogo" id="cardLogo" alt="Pain Free Club" src="">
+          <div class="ceyebrow">MOVE&#8209;A&#8209;THON</div>
+          <div class="cmedalimg">
+            <img id="cardBadge" alt="" src="">
+            <div id="cardBadgeFallback" class="medalFallback" hidden></div>
+          </div>
+          <div class="ctheme"><span id="cardTheme">Identity</span> Badge</div>
+          <div class="cawarded">awarded to</div>
+          <div class="cname" id="cardName">—</div>
+          <div class="cmot" id="cardMot"></div>
+          <div class="cdivider"></div>
+          <div class="cfoot">
+            <div class="cfoot-col"><span class="cfoot-lab">Date</span><span id="cardDate">—</span></div>
+            <div class="cfoot-col right"><span class="cfoot-sig">Dr. Manan Vora</span><span class="cfoot-lab">Pain Free Club</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <button class="btn mt24" id="saveCardBtn">📸 Save my badge</button>
+    <p class="hint mt8">Save it to your gallery and post it on the community dashboard 🎉</p>
+
+    <div class="divider"></div>
+    <h2>Your sit-to-stand video</h2>
+    <p class="muted mt8">Share this week's 30-second test — do your best, it's about the habit. Pick whichever is easier:</p>
+    <button class="btn wa mt16" id="waBtn">Send my video to Sanya on WhatsApp</button>
+    <button class="btn secondary mt16" id="dashBtn">Post it on the community dashboard</button>
+
+    <button class="btn ghost mt24" id="resHome">Back to home</button>
+  </section>
+
+  <!-- ============ PROGRESS ============ -->
+  <section id="view-progress" class="view">
+    <span class="eyebrow">Your journey</span>
+    <h1 class="mt8">Pillar progress</h1>
+    <div class="panel">
+      <h2>Each pillar, badge by badge</h2>
+      <div id="progPillars" class="mt16"></div>
+    </div>
+    <button class="btn ghost mt24" id="progHome">Back to home</button>
+  </section>
+
+  <!-- ============ CERTIFICATE / GRADUATION ============ -->
+  <section id="view-graduation" class="view center">
+    <span class="eyebrow">🎓 Move-a-thon Complete</span>
+    <h1 class="mt8">You did it, <span id="gradName">friend</span>!</h1>
+    <p class="lead">All six badges earned. Here's your journey.</p>
+
+    <div class="panel">
+      <div class="dialwrap">
+        <svg width="220" height="220" viewBox="0 0 220 220">
+          <circle cx="110" cy="110" r="92" fill="none" stroke="#eee6d3" stroke-width="18"/>
+          <circle id="gradRing" cx="110" cy="110" r="92" fill="none" stroke="#C9A24B" stroke-width="18" stroke-linecap="round" stroke-dasharray="578" stroke-dashoffset="578"/>
+        </svg>
+        <div class="num"><b id="gradNum">0</b><span>Overall score</span></div>
+      </div>
+      <div id="gradAward" class="mt16"></div>
+    </div>
+
+    <div class="panel">
+      <h2>Your six themes</h2>
+      <div class="themestrip mt16" id="gradThemes"></div>
+    </div>
+
+    <div class="panel">
+      <h2>Your five pillars</h2>
+      <div id="gradPillars" class="mt16"></div>
+    </div>
+
+    <div class="goalbox">
+      <span class="eyebrow">The goal you set on Day 0</span>
+      <p id="gradGoal">—</p>
+    </div>
+
+    <div class="panel">
+      <h2>How close do you feel now?</h2>
+      <p class="muted mt8">One last reflection — where are you today on your goal?</p>
+      <div class="scale" id="gradScale"></div>
+      <div class="field mt16"><label for="gradReflect">A final note to yourself (optional)</label>
+        <input id="gradReflect" type="text" placeholder="What feels different after 6 weeks?"></div>
+      <button class="btn mt24" id="gradSave">Save my reflection</button>
+    </div>
+
+    <button class="btn ghost mt16" id="gradHome">Back to home</button>
+  </section>
+
+</main>
+
+<script>
+/* ================= CONFIG — edit these ================= */
+var CONFIG = {
+  SANYA_WHATSAPP:   'SANYA_WHATSAPP', // full intl digits, no + (e.g. 919876543210)
+  COMMUNITY_URL:    'COMMUNITY_URL',  // link to community dashboard
+  SUPABASE_URL:     '',               // e.g. https://xxxx.supabase.co  (recommended backend)
+  SUPABASE_ANON_KEY:'',
+  MEMBERS_TABLE:    'moveathon_members',
+  BADGES_TABLE:     'moveathon_badges',
+  SHEET_WEBHOOK_URL:'',               // Google Sheet fallback (write-only, single-run)
+  DISTINCTION_THRESHOLD: 75,          // backend-only "distinction" flag; NOT a gate. Never shown as %.
+  DISTINCTION_MIN_WEEKS: 4,
+  /* The 5 weekly mini-challenges members complete and post on the dashboard.
+     Edit these each week (or leave generic). Each completed one = 4 pts (20 total). */
+  CHALLENGES: ['Challenge 1','Challenge 2','Challenge 3','Challenge 4','Challenge 5']
+};
+
+/* The 6 themes — stable catalog. Rename freely; the id (1..6) is what badges
+   are keyed to, so a badge earned in one run matches the same theme in the next. */
+/* Each theme carries its award identity: badge = emblem image in badges/
+   (transparent PNG; falls back to a placeholder medal if missing), motivation =
+   the line printed on the certificate. Names 2-6 are placeholders until set. */
+var THEMES = [
+  { id:1, name:'Identity',  badge:'badges/identity.png',  motivation:'You proved your pain is not your identity — your consistency is.' },
+  { id:2, name:'Clarity',   badge:'badges/clarity.png',   motivation:'A clear mind moves a stronger body. You showed up for both.' },
+  { id:3, name:'Mobility',  badge:'badges/mobility.png',  motivation:'Every honest rep this week bought you a little more freedom to move.' },
+  { id:4, name:'Balance',   badge:'badges/balance.png',   motivation:'Steady, balanced, consistent — that is how real recovery is built.' },
+  { id:5, name:'Endurance', badge:'badges/endurance.png', motivation:'You kept going when it was easier to stop. That is endurance.' },
+  { id:6, name:'Freedom',   badge:'badges/freedom.png',   motivation:'Six weeks of showing up — this is what moving freely feels like.' }
+];
+function themeOf(id){ for(var i=0;i<THEMES.length;i++){ if(THEMES[i].id===id) return THEMES[i]; } return {id:id,name:'Theme '+id,badge:'',motivation:''}; }
+var PFC_LOGO='assets/pfc-logo.png';
+
+/* Every Move-a-thon run. List the current run AND upcoming runs so returning
+   members know when a theme they missed goes live again. themeOrder maps
+   program-week 1..6 -> theme id. */
+var COHORTS = [
+  { id:'C1', label:'Run 1', start:'2026-09-01', themeOrder:[1,2,3,4,5,6] },
+  { id:'C2', label:'Run 2', start:'2026-11-01', themeOrder:[1,2,3,4,5,6] },
+  { id:'C3', label:'Run 3', start:'2027-01-01', themeOrder:[1,2,3,4,5,6] }
+];
+var WEEKS_TOTAL = 6;
+var DAY = 864e5;
+
+/* ================= helpers ================= */
+function $(id){ return document.getElementById(id); }
+function show(v){ document.querySelectorAll('.view').forEach(function(x){x.classList.remove('active');}); $('view-'+v).classList.add('active'); window.scrollTo(0,0); }
+function load(k){ try{ return JSON.parse(localStorage.getItem(k)); }catch(e){ return null; } }
+function save(k,v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
+function today(){ return window.__MPS_NOW ? new Date(window.__MPS_NOW) : new Date(); } // __MPS_NOW = test hook
+function phoneKey(p){ return (p||'').replace(/\D/g,''); } // digits only, so 'same phone' matches regardless of + / spaces
+function themeName(id){ for(var i=0;i<THEMES.length;i++){ if(THEMES[i].id===id) return THEMES[i].name; } return 'Theme '+id; }
+function fmtDate(d){ return d.toLocaleDateString(undefined,{day:'numeric',month:'short'}); }
+var TICK='<svg viewBox="0 0 24 24" fill="none" stroke="#2a1e05" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>';
+var TICKW='<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>';
+
+/* ================= state ================= */
+var profile = load('mps_profile');       // {name,email,phone,goal,joinedCohort,joinedProgramWeek}
+var badges  = load('mps_badges') || {};   // { themeId: {themeId,themeName,cohortId,programWeek,score,pillars,closeness,earnedAt} }
+var grad    = load('mps_grad')  || null;
+
+/* ================= scoring =================
+   6 pillars, weighted to total 100 (see PILLAR_MAX). Subjective self-reports
+   are worth a little less than the verifiable ones (attendance + posted
+   challenges) so the score reflects real, evidenced work — not a rig. */
+var PILLAR_MAX = { Pain:15, Confidence:15, Movement:15, Strength:15, Consistency:20, Challenges:20 };
+var PILLARS = ['Pain','Confidence','Movement','Strength','Consistency','Challenges']; // total 100
+function tierPts(idx,max){ return Math.round((+idx||0)/4*max); } // 5 tiers (0..4) -> 0..max
+function strengthBand(reps){ reps=+reps||0; if(reps<=2)return 0; if(reps<=5)return 1; if(reps<=10)return 2; if(reps<=15)return 3; return 4; }
+function countTrue(o,keys){ if(!o) return 0; var n=0; keys.forEach(function(k){ if(o[k]) n++; }); return n; }
+function attendCount(a){ return countTrue(a,['y1','y2','p1','p2','ic']); }        // 0..5 sessions
+function challengeCount(c){ return countTrue(c,['x1','x2','x3','x4','x5']); }      // 0..5 mini-challenges
+function pillarsFromDraft(d){
+  return { Pain:tierPts(d.painBand,PILLAR_MAX.Pain), Confidence:tierPts(d.confBand,PILLAR_MAX.Confidence),
+           Movement:tierPts(d.moveBand,PILLAR_MAX.Movement), Strength:tierPts(strengthBand(d.reps),PILLAR_MAX.Strength),
+           Consistency:attendCount(d.attend)*(PILLAR_MAX.Consistency/5),        // 4 pts per session
+           Challenges:challengeCount(d.challenges)*(PILLAR_MAX.Challenges/5) };  // 4 pts per challenge
+}
+function sumPillars(p){ var s=0; for(var k in p) s+=p[k]; return s; }
+function band(t){ if(t>=75) return {c:'#2f9e6a',bg:'#f0faf5',lbl:'Excellent progress'};
+  if(t>=50) return {c:'#c98a2b',bg:'#fdf6e8',lbl:'Good, keep building'};
+  return {c:'#c0483d',bg:'#fbeeec',lbl:'Every step counts'}; }
+function sayFor(t){ return t>=75?"Fantastic — your knees are really responding.":(t>=50?"Real momentum. Keep showing up.":"You showed up this week — that's how change starts."); }
+
+/* ================= cohort / theme engine ================= */
+/* which run (if any) is live today, plus the program-week and its live theme */
+function activeContext(){
+  var now = today();
+  for(var i=0;i<COHORTS.length;i++){
+    var c=COHORTS[i], start=new Date(c.start+'T00:00:00');
+    if(isNaN(start)) continue;
+    var days=Math.floor((now-start)/DAY);
+    if(days>=0 && days < WEEKS_TOTAL*7){
+      var wk=Math.floor(days/7)+1;              // 1..6
+      return { cohort:c, programWeek:wk, themeId:c.themeOrder[wk-1] };
+    }
+  }
+  return null; // in a break / before first run / after last
+}
+function earnedThemeIds(){ return Object.keys(badges).map(Number); }
+function missingThemeIds(){ return THEMES.map(function(t){return t.id;}).filter(function(id){ return !badges[id]; }); }
+/* when does theme `id` next go live (currently or in a future run)? -> {cohort,date,live} or null */
+function nextLiveOfTheme(id){
+  var now=today(), best=null;
+  COHORTS.forEach(function(c){
+    var start=new Date(c.start+'T00:00:00'); if(isNaN(start)) return;
+    var wkIdx=c.themeOrder.indexOf(id); if(wkIdx<0) return;
+    var wkStart=new Date(start.getTime()+wkIdx*7*DAY);
+    var wkEnd=new Date(wkStart.getTime()+7*DAY);
+    var live = now>=wkStart && now<wkEnd;
+    if(now < wkEnd){ // this occurrence hasn't finished yet
+      if(!best || wkStart < best.date){ best={cohort:c, date:wkStart, live:live}; }
+    }
+  });
+  return best;
+}
+/* next run that starts strictly in the future -> {cohort,date} or null */
+function nextRunStart(){
+  var now=today(), best=null;
+  COHORTS.forEach(function(c){ var s=new Date(c.start+'T00:00:00'); if(!isNaN(s) && s>now){ if(!best||s<best.date) best={cohort:c,date:s}; } });
+  return best;
+}
+
+/* ================= backend (best-effort) ================= */
+function sbHeaders(){ return {'Content-Type':'application/json','apikey':CONFIG.SUPABASE_ANON_KEY,'Authorization':'Bearer '+CONFIG.SUPABASE_ANON_KEY}; }
+function hasSupabase(){ return CONFIG.SUPABASE_URL && CONFIG.SUPABASE_ANON_KEY; }
+function sbUrl(table,qs){ return CONFIG.SUPABASE_URL.replace(/\/$/,'')+'/rest/v1/'+table+(qs?('?'+qs):''); }
+
+function pushMember(){
+  if(!profile) return;
+  var row={ member_id:profile.email, name:profile.name, phone:profile.phone, goal:profile.goal,
+            cohort_joined:profile.joinedCohort||'', join_program_week:profile.joinedProgramWeek||null,
+            badges_earned:earnedThemeIds().length, status:(earnedThemeIds().length>=6?'graduated':'active'),
+            updated_at:new Date().toISOString() };
+  if(hasSupabase()){
+    fetch(sbUrl(CONFIG.MEMBERS_TABLE,'on_conflict=member_id'), {method:'POST',
+      headers:Object.assign(sbHeaders(),{'Prefer':'resolution=merge-duplicates,return=minimal'}), body:JSON.stringify(row)}).catch(function(){});
+  }
+  if(CONFIG.SHEET_WEBHOOK_URL){ fetch(CONFIG.SHEET_WEBHOOK_URL,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(Object.assign({kind:'member'},row))}).catch(function(){}); }
+}
+function pushBadge(b){
+  var row={ member_id:profile.email, name:profile.name, phone:profile.phone,
+            theme_id:b.themeId, theme_name:b.themeName, cohort_id:b.cohortId, program_week:b.programWeek,
+            score:b.score, pain:b.pillars.Pain, confidence:b.pillars.Confidence, movement:b.pillars.Movement,
+            strength:b.pillars.Strength, consistency:b.pillars.Consistency, challenges:b.pillars.Challenges, reps:b.reps,
+            sessions_attended:b.sessions, challenges_done:b.challenges, goal_closeness:b.closeness, earned_at:b.earnedAt };
+  if(hasSupabase()){
+    fetch(sbUrl(CONFIG.BADGES_TABLE,'on_conflict=member_id,theme_id'), {method:'POST',
+      headers:Object.assign(sbHeaders(),{'Prefer':'resolution=merge-duplicates,return=minimal'}), body:JSON.stringify(row)}).catch(function(){});
+  }
+  if(CONFIG.SHEET_WEBHOOK_URL){ fetch(CONFIG.SHEET_WEBHOOK_URL,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(Object.assign({kind:'badge'},row))}).catch(function(){}); }
+}
+/* restore a returning member's badges from Supabase by email */
+function loadBadgeRows(rows){
+  if(!rows || !rows.length) return false;
+  rows.forEach(function(r){
+    badges[r.theme_id] = { themeId:+r.theme_id, themeName:r.theme_name||themeName(+r.theme_id),
+      cohortId:r.cohort_id, programWeek:r.program_week, score:r.score,
+      pillars:{Pain:r.pain,Confidence:r.confidence,Movement:r.movement,Strength:r.strength,Consistency:r.consistency,Challenges:r.challenges},
+      reps:r.reps, sessions:r.sessions_attended, challenges:r.challenges_done, closeness:r.goal_closeness, earnedAt:r.earned_at };
+  });
+  save('mps_badges', badges);
+  return true;
+}
+/* Resolve a returning member by EITHER email OR mobile, so a typo in one
+   doesn't split their history. Whichever key matches, we adopt the existing
+   account's canonical email as member_id and pull that member's badges. */
+function restoreIdentity(email, phone){
+  if(!hasSupabase()) return Promise.resolve(false);
+  var pk=phoneKey(phone);
+  var orv='or=(member_id.eq.'+encodeURIComponent(email)+(pk?(',phone.eq.'+encodeURIComponent(pk)):'')+')';
+  return fetch(sbUrl(CONFIG.MEMBERS_TABLE, orv+'&select=*'), {headers:sbHeaders()})
+    .then(function(r){ return r.ok?r.json():[]; })
+    .then(function(rows){
+      if(!rows || !rows.length) return false;
+      var m=rows[0]; // existing account (matched on email or phone)
+      profile.email=m.member_id;                       // adopt canonical id so history unifies
+      if(m.name && !profile.name) profile.name=m.name;
+      if(m.goal && !profile.goal) profile.goal=m.goal;
+      if(m.cohort_joined) profile.joinedCohort=m.cohort_joined;
+      if(m.join_program_week) profile.joinedProgramWeek=m.join_program_week;
+      save('mps_profile', profile);
+      return fetch(sbUrl(CONFIG.BADGES_TABLE,'member_id=eq.'+encodeURIComponent(m.member_id)+'&select=*'), {headers:sbHeaders()})
+        .then(function(r){ return r.ok?r.json():[]; }).then(loadBadgeRows);
+    }).catch(function(){ return false; });
+}
+
+/* ================= SIGNUP ================= */
+$('signupForm').addEventListener('submit', function(e){
+  e.preventDefault();
+  var f=e.target; if(!f.checkValidity()){ f.reportValidity(); return; }
+  var dial=phoneKey(f.cc.value), local=phoneKey(f.phone.value);
+  profile={ name:f.name.value.trim(), email:f.email.value.trim().toLowerCase(),
+            dialCode:dial, phone:dial+local, goal:f.goal.value.trim(),
+            joinedCohort:null, joinedProgramWeek:null };
+  save('mps_profile', profile);
+  var done=function(){ pushMember(); renderHome(); show('home'); };
+  restoreIdentity(profile.email, profile.phone).then(done, done);
+});
+$('homeReset').addEventListener('click', function(e){
+  e.preventDefault();
+  if(confirm('This clears the journey on THIS device only. Your badges are safe in the backend and will return when you sign in with the same email. Continue?')){
+    localStorage.removeItem('mps_profile'); localStorage.removeItem('mps_badges'); localStorage.removeItem('mps_grad');
+    profile=null; badges={}; grad=null; show('signup');
+  }
+});
+
+/* ================= HOME ================= */
+function renderHome(){
+  var first=(profile.name||'friend').split(' ')[0];
+  $('homeHi').textContent='Welcome back, '+first;
+  $('homeWho').textContent=profile.email;
+  $('homeGoal').textContent=profile.goal||'—';
+
+  var count=earnedThemeIds().length;
+  $('homeRing').style.strokeDashoffset=578; $('homeNum').textContent=0;
+  setTimeout(function(){ animateBadges(count); },200);
+
+  var ctx=activeContext();
+  var cta=$('homeCta');
+  var done = count>=6;
+
+  if(done){
+    $('homeTitle').textContent='All 6 badges earned 🎉';
+    $('homeStatus').innerHTML='Your Move-a-thon is complete. Tap below for your certificate.';
+    cta.style.display='none';
+  } else if(ctx && !badges[ctx.themeId]){
+    // a theme is live this week and the member still needs it
+    $('homeTitle').textContent='This week: '+themeName(ctx.themeId);
+    $('homeStatus').innerHTML='<b>'+themeName(ctx.themeId)+'</b> is live now ('+ctx.cohort.label+', week '+ctx.programWeek+'). Log this week to earn badge '+(count+1)+' of 6.';
+    cta.style.display='flex'; cta.textContent='Log '+themeName(ctx.themeId)+' →';
+    cta.disabled=false; cta.onclick=function(){ startWeek(ctx); };
+  } else if(ctx && badges[ctx.themeId]){
+    // live theme already earned -> can't backfill; point to next missing theme
+    var miss=missingThemeIds();
+    var nxt=miss.length?nextLiveOfTheme(miss[0]):null;
+    // choose the earliest-going-live missing theme
+    var soonest=null; miss.forEach(function(id){ var n=nextLiveOfTheme(id); if(n && (!soonest||n.date<soonest.date)) soonest={id:id,info:n}; });
+    $('homeTitle').textContent="You're up to date ✓";
+    var msg='You already have this week’s badge (<b>'+themeName(ctx.themeId)+'</b>). ';
+    if(soonest){ msg+='You still need <b>'+themeName(soonest.id)+'</b> — it goes live '+(soonest.info.live?'now':'from '+fmtDate(soonest.info.date))+' in '+soonest.info.cohort.label+'.'; }
+    $('homeStatus').innerHTML=msg;
+    cta.style.display='none';
+  } else {
+    // break / between runs
+    $('homeTitle').textContent='Move-a-thon is on a break';
+    var run=nextRunStart();
+    var miss2=missingThemeIds().map(themeName).join(', ');
+    var m='You’ve earned '+count+' of 6 badges. ';
+    if(run){ m+='The next run ('+run.cohort.label+') starts '+fmtDate(run.date)+'. You’ll be able to earn: <b>'+(miss2||'—')+'</b>.'; }
+    else { m+='Watch for the next run to earn your remaining badges: <b>'+(miss2||'—')+'</b>.'; }
+    $('homeStatus').innerHTML=m;
+    cta.style.display='none';
+  }
+
+  $('themeStrip').innerHTML = buildThemeStrip(ctx);
+  $('homeProgressBtn').style.display = count?'flex':'none';
+  $('homeProgressBtn').onclick=function(){ renderProgress(); show('progress'); };
+  $('homeGradBtn').style.display = done?'flex':'none';
+  $('homeGradBtn').onclick=function(){ renderGraduation(); show('graduation'); };
+}
+function animateBadges(target){
+  var C=578, ring=$('homeRing'), num=$('homeNum');
+  var pct=target/6*100, b=band(pct>=100?100:(target>=4?75:40));
+  ring.setAttribute('stroke', target>=6?'#2f9e6a':'#C9A24B');
+  var start=null,dur=1000;
+  function step(ts){ if(!start)start=ts; var t=Math.min((ts-start)/dur,1),e=1-Math.pow(1-t,3);
+    num.textContent=Math.round(e*target); ring.style.strokeDashoffset=C-(C*e*target/6); if(t<1)requestAnimationFrame(step); }
+  requestAnimationFrame(step);
+}
+function buildThemeStrip(ctx){
+  return THEMES.map(function(t){
+    var earned=!!badges[t.id];
+    var live = ctx && ctx.themeId===t.id && !earned;
+    var cls='th'+(earned?' earned':(live?' live':''));
+    var icon=earned?'✓':(live?'●':'🔒');
+    var st=earned?('Earned · '+badges[t.id].score+'/100'):(live?'Live this week':'Locked');
+    return '<div class="'+cls+'"><span class="ic">'+icon+'</span><span><span class="nm">'+t.name+'</span><span class="st">'+st+'</span></span></div>';
+  }).join('');
+}
+
+/* ================= WEEKLY WIZARD ================= */
+var draft=null, stepIdx=0, activeCtx=null;
+var STEPS=[
+  {cat:'Pain', build:stepPain, valid:function(){return draft.painBand!=null;}},
+  {cat:'Confidence', build:stepConf, valid:function(){return draft.confBand!=null;}},
+  {cat:'Movement', build:stepMove, valid:function(){return draft.moveBand!=null;}},
+  {cat:'Strength', build:stepStrength, valid:function(){return true;}},
+  {cat:'Consistency', build:stepConsistency, valid:function(){return true;}},
+  {cat:'Challenges', build:stepChallenges, valid:function(){return true;}},
+  {cat:'Your goal', build:stepCloseness, valid:function(){return draft.closeness!=null;}}
+];
+function startWeek(ctx){
+  if(!ctx || badges[ctx.themeId]) return; // dosage guard: only the live, unearned theme
+  activeCtx=ctx; stepIdx=0;
+  draft={ painBand:null, confBand:null, moveBand:null, reps:0,
+          attend:{y1:false,y2:false,p1:false,p2:false,ic:false},
+          challenges:{x1:false,x2:false,x3:false,x4:false,x5:false}, closeness:null };
+  renderStep();
+}
+function renderStep(){
+  var s=STEPS[stepIdx];
+  $('stepCat').textContent=themeName(activeCtx.themeId)+' · '+s.cat;
+  $('stepCount').textContent='Step '+(stepIdx+1)+' of '+STEPS.length;
+  $('stepBar').style.width=Math.round(stepIdx/STEPS.length*100)+'%';
+  $('stepBody').innerHTML=''; s.build();
+  $('stepBack').style.visibility=stepIdx===0?'hidden':'visible';
+  $('stepNext').textContent=stepIdx===STEPS.length-1?'Earn my badge →':'Next →';
+  show('week');
+}
+function optCard(label,sel,onclick){ var d=document.createElement('button'); d.type='button'; d.className='opt'+(sel?' sel':''); d.innerHTML='<span class="tick">'+TICK+'</span><span>'+label+'</span>'; d.onclick=onclick; return d; }
+function radioGroup(box,options,current,setter){ options.forEach(function(o,i){ box.appendChild(optCard(o,current===i,function(){ setter(i); renderStep(); })); }); }
+function qHead(title,sub){ return '<div class="eyebrow" style="color:var(--gold-d)">'+themeName(activeCtx.themeId)+'</div><h2 style="margin-top:6px">'+title+'</h2>'+(sub?'<p class="muted mt8">'+sub+'</p>':''); }
+function stepPain(){ var b=$('stepBody'); b.innerHTML=qHead('Over the past 7 days, what was your average knee pain?'); var box=document.createElement('div'); box.className='opts mt16'; b.appendChild(box);
+  radioGroup(box,['Severe (8–10)','High (6–7)','Moderate (4–5)','Mild (2–3)','None or almost none (0–1)'],draft.painBand,function(i){draft.painBand=i;}); }
+function stepConf(){ var b=$('stepBody'); b.innerHTML=qHead('How confident do you feel using your knees in daily life?'); var box=document.createElement('div'); box.className='opts mt16'; b.appendChild(box);
+  radioGroup(box,['Not confident (0–2)','A little (3–4)','Somewhat (5–6)','Quite confident (7–8)','Very confident (9–10)'],draft.confBand,function(i){draft.confBand=i;}); }
+function stepMove(){ var b=$('stepBody'); b.innerHTML=qHead('How much does your knee limit your movement during daily life?'); var box=document.createElement('div'); box.className='opts mt16'; b.appendChild(box);
+  radioGroup(box,['Stops me from most activities','Limits me on most days','Limits me sometimes','Rarely limits me','Does not limit me'],draft.moveBand,function(i){draft.moveBand=i;}); }
+function stepStrength(){ var b=$('stepBody'); b.innerHTML=qHead('30-second Sit-to-Stand test','Count how many times you can stand up and sit down in 30 seconds. Just do your best today — there’s no wrong number.');
+  var wrap=document.createElement('div'); wrap.className='stepper mt24'; wrap.innerHTML='<button type="button" id="repMinus">−</button><div class="val" id="repVal">'+draft.reps+'</div><button type="button" id="repPlus">+</button>'; b.appendChild(wrap);
+  var lbl=document.createElement('p'); lbl.className='muted center mt16'; lbl.textContent='reps in 30 seconds'; b.appendChild(lbl);
+  wrap.querySelector('#repMinus').onclick=function(){ draft.reps=Math.max(0,draft.reps-1); $('repVal').textContent=draft.reps; };
+  wrap.querySelector('#repPlus').onclick=function(){ draft.reps=draft.reps+1; $('repVal').textContent=draft.reps; }; }
+function stepConsistency(){ var b=$('stepBody'); b.innerHTML=qHead('Which sessions did you complete this week?','Live or recorded both count. Tick everything you did.');
+  var items=[['y1','Yoga session 1'],['y2','Yoga session 2'],['p1','Physio session 1'],['p2','Physio session 2'],['ic','Inner Circle call','live or recorded — one is enough']];
+  var box=document.createElement('div'); box.className='mt16'; b.appendChild(box);
+  items.forEach(function(it){ var d=document.createElement('button'); d.type='button'; d.className='check'+(draft.attend[it[0]]?' sel':''); d.innerHTML='<span class="box">'+TICKW+'</span><span>'+it[1]+(it[2]?'<small>'+it[2]+'</small>':'')+'</span>'; d.onclick=function(){ draft.attend[it[0]]=!draft.attend[it[0]]; renderStep(); }; box.appendChild(d); }); }
+function stepChallenges(){ var b=$('stepBody'); b.innerHTML=qHead('This week’s 5 mini-challenges','Tick each one you completed and posted on the community dashboard.');
+  var labels=(CONFIG.CHALLENGES&&CONFIG.CHALLENGES.length===5)?CONFIG.CHALLENGES:['Challenge 1','Challenge 2','Challenge 3','Challenge 4','Challenge 5'];
+  var keys=['x1','x2','x3','x4','x5'];
+  var box=document.createElement('div'); box.className='mt16'; b.appendChild(box);
+  labels.forEach(function(lab,i){ var d=document.createElement('button'); d.type='button'; d.className='check'+(draft.challenges[keys[i]]?' sel':'');
+    d.innerHTML='<span class="box">'+TICKW+'</span><span>'+lab+'</span>'; d.onclick=function(){ draft.challenges[keys[i]]=!draft.challenges[keys[i]]; renderStep(); }; box.appendChild(d); });
+}
+function stepCloseness(){ var b=$('stepBody'); b.innerHTML=qHead('How close do you feel to your goal today?','<em>"'+(profile.goal||'your goal')+'"</em><br>0 = not close yet, 10 = fully there. Just for reflection.');
+  var box=document.createElement('div'); box.className='scale mt16'; b.appendChild(box);
+  for(var i=0;i<=10;i++){ (function(n){ var d=document.createElement('button'); d.type='button'; d.textContent=n; if(draft.closeness===n)d.className='sel'; d.onclick=function(){ draft.closeness=n; renderStep(); }; box.appendChild(d); })(i); } }
+$('stepBack').onclick=function(){ if(stepIdx>0){ stepIdx--; renderStep(); } };
+$('stepNext').onclick=function(){ var s=STEPS[stepIdx]; if(!s.valid()){ alert('Please choose an answer to continue.'); return; } if(stepIdx<STEPS.length-1){ stepIdx++; renderStep(); } else { earnBadge(); } };
+
+function earnBadge(){
+  var p=pillarsFromDraft(draft), total=sumPillars(p), id=activeCtx.themeId;
+  if(!profile.joinedCohort){ profile.joinedCohort=activeCtx.cohort.id; profile.joinedProgramWeek=activeCtx.programWeek; save('mps_profile',profile); }
+  var b={ themeId:id, themeName:themeName(id), cohortId:activeCtx.cohort.id, programWeek:activeCtx.programWeek,
+          score:total, pillars:p, reps:draft.reps, sessions:attendCount(draft.attend), challenges:challengeCount(draft.challenges), closeness:draft.closeness, earnedAt:new Date().toISOString() };
+  badges[id]=b; save('mps_badges',badges);
+  pushBadge(b); pushMember();
+  renderResult(b); show('result');
+}
+
+/* ================= RESULT / BADGE ================= */
+function renderResult(b){
+  var first=(profile.name||'friend').split(' ')[0];
+  var count=earnedThemeIds().length;
+  var th=themeOf(b.themeId);
+  $('resTag').textContent='Badge '+count+' of 6 earned';
+  $('resName').textContent=first;
+  $('resSay').textContent=sayFor(b.score);
+  // certificate (no score — a consistency award)
+  $('cardLogo').src=PFC_LOGO;
+  $('cardTheme').textContent=b.themeName;
+  $('cardName').textContent=profile.name;
+  $('cardMot').textContent=th.motivation||'';
+  $('cardDate').textContent=new Date(b.earnedAt).toLocaleDateString(undefined,{day:'numeric',month:'long',year:'numeric'});
+  // badge emblem with graceful fallback to the placeholder medal
+  var bimg=$('cardBadge'), bfb=$('cardBadgeFallback');
+  bfb.hidden=true; bimg.hidden=false;
+  bimg.onerror=function(){ bimg.hidden=true; bfb.hidden=false; };
+  bimg.src=th.badge||'';
+  if(!th.badge){ bimg.hidden=true; bfb.hidden=false; }
+  var waBtn=$('waBtn');
+  if(CONFIG.SANYA_WHATSAPP && CONFIG.SANYA_WHATSAPP!=='SANYA_WHATSAPP'){
+    var msg=encodeURIComponent('Hi Sanya! My '+b.themeName+' week 30-second sit-to-stand video. — '+profile.name+' ('+profile.phone+')');
+    waBtn.style.display='flex'; waBtn.onclick=function(){ window.open('https://wa.me/'+CONFIG.SANYA_WHATSAPP+'?text='+msg,'_blank'); };
+  } else waBtn.style.display='none';
+  var dashBtn=$('dashBtn');
+  if(CONFIG.COMMUNITY_URL && CONFIG.COMMUNITY_URL!=='COMMUNITY_URL'){ dashBtn.style.display='flex'; dashBtn.onclick=function(){ window.open(CONFIG.COMMUNITY_URL,'_blank'); }; }
+  else dashBtn.style.display='none';
+}
+$('saveCardBtn').onclick=function(){
+  var node=$('cardShot'), btn=this; btn.disabled=true; btn.textContent='Preparing…';
+  html2canvas(node,{scale:3,backgroundColor:null,useCORS:true,allowTaint:true}).then(function(canvas){
+    var a=document.createElement('a'); a.download='move-a-thon-'+$('cardTheme').textContent.toLowerCase()+'-'+(profile.name||'badge').replace(/\s+/g,'-').toLowerCase()+'.png';
+    a.href=canvas.toDataURL('image/png'); document.body.appendChild(a); a.click(); a.remove(); btn.disabled=false; btn.textContent='📸 Save my badge';
+  }).catch(function(){ btn.disabled=false; btn.textContent='📸 Save my badge'; alert('Could not save automatically — please screenshot the badge instead.'); });
+};
+$('resHome').onclick=function(){ renderHome(); show('home'); };
+
+/* ================= PROGRESS ================= */
+function renderProgress(){
+  var pillars=PILLARS;
+  var earned=THEMES.filter(function(t){return badges[t.id];});
+  $('progPillars').innerHTML=pillars.map(function(name){
+    var cells=THEMES.map(function(t){ var v=badges[t.id]?badges[t.id].pillars[name]:null;
+      return '<div class="th '+(v==null?'':'earned')+'" style="flex-direction:column;text-align:center;gap:2px;padding:10px 4px"><span class="nm" style="font-size:13px">'+t.name.slice(0,4)+'</span><span class="st" style="font-size:15px;color:'+(v==null?'#c9c0ab':'var(--green-d)')+'">'+(v==null?'–':v)+'</span></div>'; }).join('');
+    return '<div style="margin-bottom:18px"><div class="pill"><span class="name">'+name+'</span></div><div class="themestrip" style="grid-template-columns:repeat(6,1fr)">'+cells+'</div></div>';
+  }).join('');
+}
+$('progHome').onclick=function(){ renderHome(); show('home'); };
+
+/* ================= CERTIFICATE / GRADUATION ================= */
+function best4avg(){ var t=THEMES.map(function(x){return badges[x.id]?badges[x.id].score:null;}).filter(function(v){return v!=null;}).sort(function(a,b){return b-a;}).slice(0,4); return t.length?Math.round(t.reduce(function(a,b){return a+b;},0)/t.length):0; }
+function overallAvg(){ var t=earnedThemeIds().map(function(id){return badges[id].score;}); return t.length?Math.round(t.reduce(function(a,b){return a+b;},0)/t.length):0; }
+function renderGraduation(){
+  var first=(profile.name||'friend').split(' ')[0];
+  $('gradName').textContent=first; $('gradGoal').textContent=profile.goal||'—';
+  var overall=overallAvg();
+  $('gradRing').style.strokeDashoffset=578; $('gradNum').textContent=0;
+  setTimeout(function(){ var C=578,ring=$('gradRing'),num=$('gradNum'),bb=band(overall); ring.setAttribute('stroke',bb.c); var s=null,d=1100; (function st(ts){ if(!s)s=ts; var t=Math.min((ts-s)/d,1),e=1-Math.pow(1-t,3); num.textContent=Math.round(e*overall); ring.style.strokeDashoffset=C-(C*e*overall/100); if(t<1)requestAnimationFrame(st); })(performance.now()); },250);
+
+  var distinction = best4avg()>=CONFIG.DISTINCTION_THRESHOLD; // backend-only flavour; shown as a warm extra, not a gate
+  $('gradAward').innerHTML='<span class="bandlbl" style="color:#04121f;background:linear-gradient(120deg,var(--cyan),var(--indigo));box-shadow:0 8px 26px rgba(56,225,208,.3)">🏆 Certificate earned — all 6 badges!</span>'+
+    (distinction?'<p class="muted mt8">With distinction — your scores were consistently strong. Your certificate is on its way.</p>':'<p class="muted mt8">Look how far you’ve come. Your certificate is on its way.</p>');
+
+  $('gradThemes').innerHTML=THEMES.map(function(t){ var b=badges[t.id]; return '<div class="th earned"><span class="ic">✓</span><span><span class="nm">'+t.name+'</span><span class="st">'+(b?b.score+'/100':'')+'</span></span></div>'; }).join('');
+
+  $('gradPillars').innerHTML=PILLARS.map(function(name){ var vals=earnedThemeIds().map(function(id){return badges[id].pillars[name]||0;}); var avg=vals.length?Math.round(vals.reduce(function(a,b){return a+b;},0)/vals.length):0;
+    var mx=PILLAR_MAX[name];
+    return '<div class="pill"><span class="name">'+name+'</span><span class="bar"><i style="width:'+(avg/mx*100)+'%"></i></span><span class="pts">'+avg+'/'+mx+'</span></div>'; }).join('');
+
+  var sc=$('gradScale'); sc.innerHTML='';
+  for(var i=0;i<=10;i++){ (function(n){ var d=document.createElement('button'); d.type='button'; d.textContent=n; if(grad&&grad.closeness===n)d.className='sel'; d.onclick=function(){ sc.querySelectorAll('button').forEach(function(x){x.className='';}); d.className='sel'; sc.dataset.val=n; }; sc.appendChild(d); })(i); }
+  if(grad){ sc.dataset.val=grad.closeness; $('gradReflect').value=grad.reflect||''; }
+}
+$('gradSave').onclick=function(){
+  var sc=$('gradScale'); if(sc.dataset.val==null||sc.dataset.val===''){ alert('Please pick a number from 0 to 10.'); return; }
+  grad={ closeness:+sc.dataset.val, reflect:$('gradReflect').value.trim() }; save('mps_grad',grad);
+  var summary={ kind:'graduation', member_id:profile.email, name:profile.name, phone:profile.phone, goal:profile.goal,
+    overall:overallAvg(), best4_avg:best4avg(), distinction:(best4avg()>=CONFIG.DISTINCTION_THRESHOLD),
+    badges_earned:earnedThemeIds().length, final_goal_closeness:grad.closeness, final_reflection:grad.reflect, at:new Date().toISOString() };
+  if(hasSupabase()){ fetch(sbUrl(CONFIG.MEMBERS_TABLE,'on_conflict=member_id'),{method:'POST',headers:Object.assign(sbHeaders(),{'Prefer':'resolution=merge-duplicates,return=minimal'}),
+    body:JSON.stringify({member_id:profile.email,final_goal_closeness:grad.closeness,final_reflection:grad.reflect,distinction:summary.distinction,overall:summary.overall,status:'graduated',updated_at:summary.at})}).catch(function(){}); }
+  if(CONFIG.SHEET_WEBHOOK_URL){ fetch(CONFIG.SHEET_WEBHOOK_URL,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(summary)}).catch(function(){}); }
+  alert('Saved! Thank you for completing the Move-a-thon 🎉'); renderHome(); show('home');
+};
+$('gradHome').onclick=function(){ renderHome(); show('home'); };
+
+/* ================= boot ================= */
+if(profile && profile.email){ renderHome(); show('home'); } else { show('signup'); }
+</script>
+</body>
+</html>
