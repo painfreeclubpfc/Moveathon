@@ -212,7 +212,11 @@
   #cardShot .ctheme{font-family:var(--serif);font-weight:700;font-size:26px;line-height:1.05;color:#fff;margin:2px 0;letter-spacing:-.2px;}
   #cardShot .cawarded{color:#9fb6c9;font-size:10.5px;letter-spacing:3px;text-transform:uppercase;font-weight:700;margin-top:8px;}
   #cardShot .cname{font-family:var(--serif);font-weight:600;font-size:23px;color:#F3E7C6;margin-top:2px;line-height:1.1;}
-  #cardShot .cmot{color:#cdd9e6;font-size:12.5px;line-height:1.45;font-style:italic;margin-top:8px;max-width:30ch;}
+  #cardShot .cscore{margin-top:12px;display:flex;flex-direction:column;align-items:center;gap:3px;}
+  #cardShot .cscore-lab{color:#9fb6c9;font-size:10px;letter-spacing:2.5px;text-transform:uppercase;font-weight:700;}
+  #cardShot .cscore b{font-family:var(--serif);font-weight:600;font-size:30px;color:#fff;line-height:1;}
+  #cardShot .cscore b i{font-style:normal;font-size:17px;color:#D6B25E;}
+  #cardShot .cmot{color:#cdd9e6;font-size:12.5px;line-height:1.45;font-style:italic;margin-top:12px;max-width:30ch;}
   #cardShot .cdivider{width:64px;height:2px;margin:11px 0 9px;background:linear-gradient(90deg,transparent,#D6B25E,transparent);}
   #cardShot .cfoot{margin-top:20px;width:100%;display:flex;justify-content:space-between;align-items:flex-end;gap:10px;}
   #cardShot .cfoot-col{display:flex;flex-direction:column;text-align:left;}
@@ -431,6 +435,7 @@
           <div class="ctheme"><span id="cardTheme">Identity</span> Badge</div>
           <div class="cawarded">awarded to</div>
           <div class="cname" id="cardName">—</div>
+          <div class="cscore"><span class="cscore-lab">Move-a-thon Progress Score</span><b><span id="cardScore">0</span><i>&#8202;/&#8202;100</i></b></div>
           <div class="cmot" id="cardMot"></div>
           <div class="cdivider"></div>
           <div class="cfoot">
@@ -873,6 +878,7 @@ function renderResult(b){
   $('cardLogo').src=PFC_LOGO;
   $('cardTheme').textContent=b.themeName;
   $('cardName').textContent=profile.name;
+  $('cardScore').textContent=b.score;
   $('cardMot').textContent=th.motivation||'';
   $('cardDate').textContent=new Date(b.earnedAt).toLocaleDateString(undefined,{day:'numeric',month:'long',year:'numeric'});
   // badge emblem with graceful fallback to the placeholder medal
