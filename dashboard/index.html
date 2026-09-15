@@ -173,8 +173,8 @@
       <div id="distBars"></div>
     </div>
     <div class="card">
-      <h2>Theme coverage</h2>
-      <div class="note">How many members have earned each theme. Low bars show where people drop off.</div>
+      <h2>Mission coverage</h2>
+      <div class="note">How many members have earned each mission. Low bars show where people drop off.</div>
       <div id="themeBars"></div>
     </div>
   </div>
@@ -200,7 +200,7 @@
     </table>
   </div>
 
-  <p class="foot">A member is certificate-ready when they hold all 6 theme-badges — earned in any run(s). Distinction = best-4-of-6 average ≥ 75 (internal only).</p>
+  <p class="foot">A member is certificate-ready when they hold all 6 mission badges — earned in any run(s). Distinction = best-4-of-6 average ≥ 75 (internal only).</p>
 </div>
 
 <script>
@@ -315,7 +315,7 @@ function render(){
   var tn={}, tc={}; STATE.badges.forEach(function(b){ tc[b.theme_id]=(tc[b.theme_id]||0)+1; if(b.theme_name) tn[b.theme_id]=b.theme_name; });
   var maxT=Math.max(1,Math.max.apply(null, THEME_ORDER.map(function(t){return tc[t]||0;})));
   document.getElementById('themeBars').innerHTML=THEME_ORDER.map(function(t){
-    return bar(tn[t]||('Theme '+t), tc[t]||0, maxT, false);
+    return bar('Mission '+t, tc[t]||0, maxT, false);
   }).join('');
 
   // table (filtered)
@@ -354,10 +354,9 @@ function memberRow(r){
     +'<td>'+status+'</td>'
     +'<td>'+distinction+'</td></tr>';
   if(!expanded[r.id]) return main;
-  var TN=['Strength','Clarity','Mobility','Balance','Endurance','Freedom'];
   var cells='';
   for(var t=1;t<=6;t++){ var b=r.themes[t];
-    var name=(b&&b.theme_name)||TN[t-1]||('Theme '+t);
+    var name='Mission '+t;
     cells+= b ? '<div class="tbadge"><div class="t">'+esc(name)+'</div><div class="m">'+b.score+'/100 · '+esc(b.cohort_id||'')+' wk '+(b.program_week||'?')+'</div></div>'
               : '<div class="tbadge miss"><div class="t">'+esc(name)+'</div><div class="m">not earned yet</div></div>';
   }
