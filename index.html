@@ -330,14 +330,14 @@
 <div class="top"><div class="wrap">
   <img class="brandlogo" src="assets/pfc-logo-white.png" alt="Pain Free Club">
   <b>Move-a-thon</b>
-  <span class="tag">Progress Score</span>
+  <span class="tag">Moveathon Progress Score</span>
 </div></div>
 
 <main class="wrap pagepad">
 
   <!-- ============ SIGNUP ============ -->
   <section id="view-signup" class="view">
-    <span class="eyebrow">Welcome to the Move-a-thon</span>
+    <span class="eyebrow">Welcome to Moveathon</span>
     <h1 class="mt8">Let's set up your<br>6-week journey</h1>
     <p class="lead">One minute, once. After this you just come back each week to log your score and collect your badges.</p>
     <form id="signupForm" class="panel" novalidate>
@@ -366,7 +366,7 @@
           <input id="suPhone" name="phone" type="tel" autocomplete="tel-national" inputmode="numeric" placeholder="mobile number" required>
         </div>
         <p class="hint">Just your number — pick your country code on the left. Default is India (+91).</p></div>
-      <div class="field"><label for="suGoal">One activity you want to do comfortably again by the end</label>
+      <div class="field"><label for="suGoal">One physical activity or task you want to improve in</label>
         <input id="suGoal" name="goal" type="text" placeholder="e.g. climb stairs without holding the rail" required>
         <p class="hint">Your personal goal — we check in on it weekly. It isn't scored.</p></div>
       <button class="btn big mt24" type="submit">Start my journey &nbsp;→</button>
@@ -400,7 +400,6 @@
     <h2 class="mt24">Your 6 badges</h2>
     <div class="themestrip" id="themeStrip"></div>
 
-    <button class="btn secondary mt24" id="homeProgressBtn" style="display:none">See my pillar progress</button>
     <button class="btn ghost mt16" id="homeGradBtn" style="display:none">View my certificate 🎓</button>
 
     <p class="footnote">Signed in as <span id="homeWho"></span>. <a href="#" id="homeReset" style="color:var(--gold-d);font-weight:700">Not you?</a></p>
@@ -449,24 +448,7 @@
     <button class="btn mt24" id="saveCardBtn">📸 Save my badge</button>
     <p class="hint mt8">Save it to your gallery and post it on the community dashboard 🎉</p>
 
-    <div class="divider"></div>
-    <h2>Your sit-to-stand video</h2>
-    <p class="muted mt8">Share this week's 30-second test — do your best, it's about the habit. Pick whichever is easier:</p>
-    <button class="btn wa mt16" id="waBtn">Send my video to Sanya on WhatsApp</button>
-    <button class="btn secondary mt16" id="dashBtn">Post it on the community dashboard</button>
-
     <button class="btn ghost mt24" id="resHome">Back to home</button>
-  </section>
-
-  <!-- ============ PROGRESS ============ -->
-  <section id="view-progress" class="view">
-    <span class="eyebrow">Your journey</span>
-    <h1 class="mt8">Pillar progress</h1>
-    <div class="panel">
-      <h2>Each pillar, badge by badge</h2>
-      <div id="progPillars" class="mt16"></div>
-    </div>
-    <button class="btn ghost mt24" id="progHome">Back to home</button>
   </section>
 
   <!-- ============ CERTIFICATE / GRADUATION ============ -->
@@ -527,9 +509,9 @@ var CONFIG = {
   SHEET_WEBHOOK_URL:'',               // Google Sheet fallback (write-only, single-run)
   DISTINCTION_THRESHOLD: 75,          // backend-only "distinction" flag; NOT a gate. Never shown as %.
   DISTINCTION_MIN_WEEKS: 4,
-  /* The 5 weekly mini-challenges members complete and post on the dashboard.
-     Edit these each week (or leave generic). Each completed one = 4 pts (20 total). */
-  CHALLENGES: ['Challenge 1','Challenge 2','Challenge 3','Challenge 4','Challenge 5']
+  /* The 5 weekly activities members complete and post on the dashboard.
+     Generic labels so they don't need changing each week. Each = 4 pts (20 total). */
+  ACTIVITIES: ['Activity 1','Activity 2','Activity 3','Activity 4','Activity 5']
 };
 
 /* The 6 themes — stable catalog. Rename freely; the id (1..6) is what badges
@@ -552,9 +534,9 @@ var PFC_LOGO='assets/pfc-logo-white.png';
    members know when a theme they missed goes live again. themeOrder maps
    program-week 1..6 -> theme id. */
 var COHORTS = [
-  { id:'C1', label:'Run 1', start:'2026-09-15', themeOrder:[1,2,3,4,5,6] },  // Week 1 = Identity, live now
-  { id:'C2', label:'Run 2', start:'2026-11-10', themeOrder:[1,2,3,4,5,6] },
-  { id:'C3', label:'Run 3', start:'2027-01-12', themeOrder:[1,2,3,4,5,6] }
+  { id:'C1', label:'Mission 1', start:'2026-09-15', themeOrder:[1,2,3,4,5,6] },  // Week 1 = Identity, live now
+  { id:'C2', label:'Mission 2', start:'2026-11-10', themeOrder:[1,2,3,4,5,6] },
+  { id:'C3', label:'Mission 3', start:'2027-01-12', themeOrder:[1,2,3,4,5,6] }
 ];
 var WEEKS_TOTAL = 6;
 var DAY = 864e5;
@@ -580,18 +562,18 @@ var grad    = load('mps_grad')  || null;
    6 pillars, weighted to total 100 (see PILLAR_MAX). Subjective self-reports
    are worth a little less than the verifiable ones (attendance + posted
    challenges) so the score reflects real, evidenced work — not a rig. */
-var PILLAR_MAX = { Pain:15, Confidence:15, Movement:15, Strength:15, Consistency:20, Challenges:20 };
-var PILLARS = ['Pain','Confidence','Movement','Strength','Consistency','Challenges']; // total 100
-function tierPts(idx,max){ return Math.round((+idx||0)/4*max); } // 5 tiers (0..4) -> 0..max
+var PILLAR_MAX = { Pain:15, Confidence:15, Movement:15, Strength:15, Consistency:20, Activities:20 };
+var PILLARS = ['Pain','Confidence','Movement','Strength','Consistency','Activities']; // total 100
+function tierPts(idx,count,max){ return Math.round((+idx||0)/(count-1)*max); } // idx 0..count-1 -> 0..max
 function strengthBand(reps){ reps=+reps||0; if(reps<=2)return 0; if(reps<=5)return 1; if(reps<=10)return 2; if(reps<=15)return 3; return 4; }
 function countTrue(o,keys){ if(!o) return 0; var n=0; keys.forEach(function(k){ if(o[k]) n++; }); return n; }
 function attendCount(a){ return countTrue(a,['y1','y2','p1','p2','ic']); }        // 0..5 sessions
-function challengeCount(c){ return countTrue(c,['x1','x2','x3','x4','x5']); }      // 0..5 mini-challenges
+function challengeCount(c){ return countTrue(c,['x1','x2','x3','x4','x5']); }      // 0..5 activities
 function pillarsFromDraft(d){
-  return { Pain:tierPts(d.painBand,PILLAR_MAX.Pain), Confidence:tierPts(d.confBand,PILLAR_MAX.Confidence),
-           Movement:tierPts(d.moveBand,PILLAR_MAX.Movement), Strength:tierPts(strengthBand(d.reps),PILLAR_MAX.Strength),
+  return { Pain:tierPts(d.painBand,5,PILLAR_MAX.Pain), Confidence:tierPts(d.confBand,4,PILLAR_MAX.Confidence),
+           Movement:tierPts(d.moveBand,5,PILLAR_MAX.Movement), Strength:tierPts(strengthBand(d.reps),5,PILLAR_MAX.Strength),
            Consistency:attendCount(d.attend)*(PILLAR_MAX.Consistency/5),        // 4 pts per session
-           Challenges:challengeCount(d.challenges)*(PILLAR_MAX.Challenges/5) };  // 4 pts per challenge
+           Activities:challengeCount(d.challenges)*(PILLAR_MAX.Activities/5) };  // 4 pts per activity
 }
 function sumPillars(p){ var s=0; for(var k in p) s+=p[k]; return s; }
 function band(t){ if(t>=75) return {c:'#2f9e6a',bg:'#f0faf5',lbl:'Excellent progress'};
@@ -659,7 +641,7 @@ function pushBadge(b){
   var row={ member_id:profile.email, name:profile.name, phone:profile.phone,
             theme_id:b.themeId, theme_name:b.themeName, cohort_id:b.cohortId, program_week:b.programWeek,
             score:b.score, pain:b.pillars.Pain, confidence:b.pillars.Confidence, movement:b.pillars.Movement,
-            strength:b.pillars.Strength, consistency:b.pillars.Consistency, challenges:b.pillars.Challenges, reps:b.reps,
+            strength:b.pillars.Strength, consistency:b.pillars.Consistency, challenges:b.pillars.Activities, reps:b.reps,
             sessions_attended:b.sessions, challenges_done:b.challenges, goal_closeness:b.closeness, earned_at:b.earnedAt };
   if(hasSupabase()){
     fetch(sbUrl(CONFIG.BADGES_TABLE,'on_conflict=member_id,theme_id'), {method:'POST',
@@ -673,7 +655,7 @@ function loadBadgeRows(rows){
   rows.forEach(function(r){
     badges[r.theme_id] = { themeId:+r.theme_id, themeName:r.theme_name||themeName(+r.theme_id),
       cohortId:r.cohort_id, programWeek:r.program_week, score:r.score,
-      pillars:{Pain:r.pain,Confidence:r.confidence,Movement:r.movement,Strength:r.strength,Consistency:r.consistency,Challenges:r.challenges},
+      pillars:{Pain:r.pain,Confidence:r.confidence,Movement:r.movement,Strength:r.strength,Consistency:r.consistency,Activities:r.challenges},
       reps:r.reps, sessions:r.sessions_attended, challenges:r.challenges_done, closeness:r.goal_closeness, earnedAt:r.earned_at };
   });
   save('mps_badges', badges);
@@ -764,15 +746,13 @@ function renderHome(){
     var run=nextRunStart();
     var miss2=missingThemeIds().map(themeName).join(', ');
     var m='You’ve earned '+count+' of 6 badges. ';
-    if(run){ m+='The next run ('+run.cohort.label+') starts '+fmtDate(run.date)+'. You’ll be able to earn: <b>'+(miss2||'—')+'</b>.'; }
-    else { m+='Watch for the next run to earn your remaining badges: <b>'+(miss2||'—')+'</b>.'; }
+    if(run){ m+='The next mission ('+run.cohort.label+') starts '+fmtDate(run.date)+'. You’ll be able to earn: <b>'+(miss2||'—')+'</b>.'; }
+    else { m+='Watch for the next mission to earn your remaining badges: <b>'+(miss2||'—')+'</b>.'; }
     $('homeStatus').innerHTML=m;
     cta.style.display='none';
   }
 
   $('themeStrip').innerHTML = buildThemeStrip(ctx);
-  $('homeProgressBtn').style.display = count?'flex':'none';
-  $('homeProgressBtn').onclick=function(){ renderProgress(); show('progress'); };
   $('homeGradBtn').style.display = done?'flex':'none';
   $('homeGradBtn').onclick=function(){ renderGraduation(); show('graduation'); };
 }
@@ -804,7 +784,7 @@ var STEPS=[
   {cat:'Movement', build:stepMove, valid:function(){return draft.moveBand!=null;}},
   {cat:'Strength', build:stepStrength, valid:function(){return true;}},
   {cat:'Consistency', build:stepConsistency, valid:function(){return true;}},
-  {cat:'Challenges', build:stepChallenges, valid:function(){return true;}},
+  {cat:'Activities', build:stepChallenges, valid:function(){return true;}},
   {cat:'Your goal', build:stepCloseness, valid:function(){return draft.closeness!=null;}}
 ];
 function startWeek(ctx){
@@ -828,23 +808,23 @@ function renderStep(){
 function optCard(label,sel,onclick){ var d=document.createElement('button'); d.type='button'; d.className='opt'+(sel?' sel':''); d.innerHTML='<span class="tick">'+TICK+'</span><span>'+label+'</span>'; d.onclick=onclick; return d; }
 function radioGroup(box,options,current,setter){ options.forEach(function(o,i){ box.appendChild(optCard(o,current===i,function(){ setter(i); renderStep(); })); }); }
 function qHead(title,sub){ return '<div class="eyebrow" style="color:var(--gold-d)">'+themeName(activeCtx.themeId)+'</div><h2 style="margin-top:6px">'+title+'</h2>'+(sub?'<p class="muted mt8">'+sub+'</p>':''); }
-function stepPain(){ var b=$('stepBody'); b.innerHTML=qHead('Over the past 7 days, what was your average knee pain?'); var box=document.createElement('div'); box.className='opts mt16'; b.appendChild(box);
+function stepPain(){ var b=$('stepBody'); b.innerHTML=qHead('Over the past 7 days, what was your average knee pain level?'); var box=document.createElement('div'); box.className='opts mt16'; b.appendChild(box);
   radioGroup(box,['Severe (8–10)','High (6–7)','Moderate (4–5)','Mild (2–3)','None or almost none (0–1)'],draft.painBand,function(i){draft.painBand=i;}); }
 function stepConf(){ var b=$('stepBody'); b.innerHTML=qHead('How confident do you feel using your knees in daily life?'); var box=document.createElement('div'); box.className='opts mt16'; b.appendChild(box);
-  radioGroup(box,['Not confident (0–2)','A little (3–4)','Somewhat (5–6)','Quite confident (7–8)','Very confident (9–10)'],draft.confBand,function(i){draft.confBand=i;}); }
+  radioGroup(box,['Not confident (0–2)','A little confident (3–5)','Quite confident (6–8)','Very confident (9–10)'],draft.confBand,function(i){draft.confBand=i;}); }
 function stepMove(){ var b=$('stepBody'); b.innerHTML=qHead('How much does your knee limit your movement during daily life?'); var box=document.createElement('div'); box.className='opts mt16'; b.appendChild(box);
   radioGroup(box,['Stops me from most activities','Limits me on most days','Limits me sometimes','Rarely limits me','Does not limit me'],draft.moveBand,function(i){draft.moveBand=i;}); }
-function stepStrength(){ var b=$('stepBody'); b.innerHTML=qHead('30-second Sit-to-Stand test','Count how many times you can stand up and sit down in 30 seconds. Just do your best today — there’s no wrong number.');
+function stepStrength(){ var b=$('stepBody'); b.innerHTML=qHead('30-second Sit-to-Stand test','Count how many times you can stand up from a chair and sit back down in 30 seconds. Just do your best today — there’s no wrong number.');
   var wrap=document.createElement('div'); wrap.className='stepper mt24'; wrap.innerHTML='<button type="button" id="repMinus">−</button><div class="val" id="repVal">'+draft.reps+'</div><button type="button" id="repPlus">+</button>'; b.appendChild(wrap);
   var lbl=document.createElement('p'); lbl.className='muted center mt16'; lbl.textContent='reps in 30 seconds'; b.appendChild(lbl);
   wrap.querySelector('#repMinus').onclick=function(){ draft.reps=Math.max(0,draft.reps-1); $('repVal').textContent=draft.reps; };
   wrap.querySelector('#repPlus').onclick=function(){ draft.reps=draft.reps+1; $('repVal').textContent=draft.reps; }; }
 function stepConsistency(){ var b=$('stepBody'); b.innerHTML=qHead('Which sessions did you complete this week?','Live or recorded both count. Tick everything you did.');
-  var items=[['y1','Yoga session 1'],['y2','Yoga session 2'],['p1','Physio session 1'],['p2','Physio session 2'],['ic','Inner Circle call','live or recorded — one is enough']];
+  var items=[['y1','Yoga session 1'],['y2','Yoga session 2'],['p1','Physio session 1'],['p2','Physio session 2'],['ic','Inner Circle call']];
   var box=document.createElement('div'); box.className='mt16'; b.appendChild(box);
   items.forEach(function(it){ var d=document.createElement('button'); d.type='button'; d.className='check'+(draft.attend[it[0]]?' sel':''); d.innerHTML='<span class="box">'+TICKW+'</span><span>'+it[1]+(it[2]?'<small>'+it[2]+'</small>':'')+'</span>'; d.onclick=function(){ draft.attend[it[0]]=!draft.attend[it[0]]; renderStep(); }; box.appendChild(d); }); }
-function stepChallenges(){ var b=$('stepBody'); b.innerHTML=qHead('This week’s 5 mini-challenges','Tick each one you completed and posted on the community dashboard.');
-  var labels=(CONFIG.CHALLENGES&&CONFIG.CHALLENGES.length===5)?CONFIG.CHALLENGES:['Challenge 1','Challenge 2','Challenge 3','Challenge 4','Challenge 5'];
+function stepChallenges(){ var b=$('stepBody'); b.innerHTML=qHead('This week’s 5 activities','Tick each one you completed and posted on the community dashboard.');
+  var labels=(CONFIG.ACTIVITIES&&CONFIG.ACTIVITIES.length===5)?CONFIG.ACTIVITIES:['Activity 1','Activity 2','Activity 3','Activity 4','Activity 5'];
   var keys=['x1','x2','x3','x4','x5'];
   var box=document.createElement('div'); box.className='mt16'; b.appendChild(box);
   labels.forEach(function(lab,i){ var d=document.createElement('button'); d.type='button'; d.className='check'+(draft.challenges[keys[i]]?' sel':'');
@@ -887,14 +867,6 @@ function renderResult(b){
   bimg.onerror=function(){ bimg.hidden=true; bfb.hidden=false; };
   bimg.src=th.badge||'';
   if(!th.badge){ bimg.hidden=true; bfb.hidden=false; }
-  var waBtn=$('waBtn');
-  if(CONFIG.SANYA_WHATSAPP && CONFIG.SANYA_WHATSAPP!=='SANYA_WHATSAPP'){
-    var msg=encodeURIComponent('Hi Sanya! My '+b.themeName+' week 30-second sit-to-stand video. — '+profile.name+' ('+profile.phone+')');
-    waBtn.style.display='flex'; waBtn.onclick=function(){ window.open('https://wa.me/'+CONFIG.SANYA_WHATSAPP+'?text='+msg,'_blank'); };
-  } else waBtn.style.display='none';
-  var dashBtn=$('dashBtn');
-  if(CONFIG.COMMUNITY_URL && CONFIG.COMMUNITY_URL!=='COMMUNITY_URL'){ dashBtn.style.display='flex'; dashBtn.onclick=function(){ window.open(CONFIG.COMMUNITY_URL,'_blank'); }; }
-  else dashBtn.style.display='none';
 }
 $('saveCardBtn').onclick=function(){
   var node=$('cardShot'), btn=this; btn.disabled=true; btn.textContent='Preparing…';
@@ -904,18 +876,6 @@ $('saveCardBtn').onclick=function(){
   }).catch(function(){ btn.disabled=false; btn.textContent='📸 Save my badge'; alert('Could not save automatically — please screenshot the badge instead.'); });
 };
 $('resHome').onclick=function(){ renderHome(); show('home'); };
-
-/* ================= PROGRESS ================= */
-function renderProgress(){
-  var pillars=PILLARS;
-  var earned=THEMES.filter(function(t){return badges[t.id];});
-  $('progPillars').innerHTML=pillars.map(function(name){
-    var cells=THEMES.map(function(t){ var v=badges[t.id]?badges[t.id].pillars[name]:null;
-      return '<div class="th '+(v==null?'':'earned')+'" style="flex-direction:column;text-align:center;gap:2px;padding:10px 4px"><span class="nm" style="font-size:13px">'+t.name.slice(0,4)+'</span><span class="st" style="font-size:15px;color:'+(v==null?'#c9c0ab':'var(--green-d)')+'">'+(v==null?'–':v)+'</span></div>'; }).join('');
-    return '<div style="margin-bottom:18px"><div class="pill"><span class="name">'+name+'</span></div><div class="themestrip" style="grid-template-columns:repeat(6,1fr)">'+cells+'</div></div>';
-  }).join('');
-}
-$('progHome').onclick=function(){ renderHome(); show('home'); };
 
 /* ================= CERTIFICATE / GRADUATION ================= */
 function best4avg(){ var t=THEMES.map(function(x){return badges[x.id]?badges[x.id].score:null;}).filter(function(v){return v!=null;}).sort(function(a,b){return b-a;}).slice(0,4); return t.length?Math.round(t.reduce(function(a,b){return a+b;},0)/t.length):0; }
