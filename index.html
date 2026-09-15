@@ -534,9 +534,9 @@ var PFC_LOGO='assets/pfc-logo-white.png';
    members know when a theme they missed goes live again. themeOrder maps
    program-week 1..6 -> theme id. */
 var COHORTS = [
-  { id:'C1', label:'Mission 1', start:'2026-09-15', themeOrder:[1,2,3,4,5,6] },  // Week 1 = Identity, live now
-  { id:'C2', label:'Mission 2', start:'2026-11-10', themeOrder:[1,2,3,4,5,6] },
-  { id:'C3', label:'Mission 3', start:'2027-01-12', themeOrder:[1,2,3,4,5,6] }
+  { id:'C1', label:'Run 1', start:'2026-09-16', themeOrder:[1,2,3,4,5,6] },  // Mission 1 (Identity) goes live on the launch-day Wednesday call; a new mission unlocks each following Wednesday
+  { id:'C2', label:'Run 2', start:'2026-11-10', themeOrder:[1,2,3,4,5,6] },
+  { id:'C3', label:'Run 3', start:'2027-01-12', themeOrder:[1,2,3,4,5,6] }
 ];
 var WEEKS_TOTAL = 6;
 var DAY = 864e5;
@@ -595,6 +595,16 @@ function activeContext(){
     }
   }
   return null; // in a break / before first run / after last
+}
+/* How many missions have had their theme NAME revealed. Mission 1 (Identity) is
+   known from launch; each following mission's name is revealed on its Wednesday.
+   Future, not-yet-revealed missions are shown as "Mission N — Locked". */
+function missionsRevealed(){
+  var ctx=activeContext();
+  if(ctx) return ctx.programWeek;          // in a run: missions 1..thisWeek are revealed
+  var s=new Date(COHORTS[0].start+'T00:00:00');
+  if(!isNaN(s) && today()<s) return 1;     // before the first run: only Mission 1 is announced
+  return THEMES.length;                     // between/after runs: all past missions are revealed
 }
 function earnedThemeIds(){ return Object.keys(badges).map(Number); }
 function missingThemeIds(){ return THEMES.map(function(t){return t.id;}).filter(function(id){ return !badges[id]; }); }
@@ -726,7 +736,7 @@ function renderHome(){
   } else if(ctx && !badges[ctx.themeId]){
     // a theme is live this week and the member still needs it
     $('homeTitle').textContent='This week: '+themeName(ctx.themeId);
-    $('homeStatus').innerHTML='<b>'+themeName(ctx.themeId)+'</b> is live now ('+ctx.cohort.label+', week '+ctx.programWeek+'). Log this week to earn badge '+(count+1)+' of 6.';
+    $('homeStatus').innerHTML='<b>'+themeName(ctx.themeId)+'</b> is live now — Mission '+ctx.programWeek+' of 6. Log it this week to earn badge '+(count+1)+' of 6.';
     cta.style.display='flex'; cta.textContent='Log '+themeName(ctx.themeId)+' →';
     cta.disabled=false; cta.onclick=function(){ startWeek(ctx); };
   } else if(ctx && badges[ctx.themeId]){
@@ -737,18 +747,24 @@ function renderHome(){
     var soonest=null; miss.forEach(function(id){ var n=nextLiveOfTheme(id); if(n && (!soonest||n.date<soonest.date)) soonest={id:id,info:n}; });
     $('homeTitle').textContent="You're up to date ✓";
     var msg='You already have this week’s badge (<b>'+themeName(ctx.themeId)+'</b>). ';
-    if(soonest){ msg+='You still need <b>'+themeName(soonest.id)+'</b> — it goes live '+(soonest.info.live?'now':'from '+fmtDate(soonest.info.date))+' in '+soonest.info.cohort.label+'.'; }
+    if(soonest){ msg+='Your next mission unlocks '+(soonest.info.live?'now':'on '+fmtDate(soonest.info.date))+'.'; }
     $('homeStatus').innerHTML=msg;
     cta.style.display='none';
   } else {
-    // break / between runs
-    $('homeTitle').textContent='Move-a-thon is on a break';
+    // break / between runs / before the first run
     var run=nextRunStart();
-    var miss2=missingThemeIds().map(themeName).join(', ');
-    var m='You’ve earned '+count+' of 6 badges. ';
-    if(run){ m+='The next mission ('+run.cohort.label+') starts '+fmtDate(run.date)+'. You’ll be able to earn: <b>'+(miss2||'—')+'</b>.'; }
-    else { m+='Watch for the next mission to earn your remaining badges: <b>'+(miss2||'—')+'</b>.'; }
-    $('homeStatus').innerHTML=m;
+    if(count===0 && run){
+      // launch-eve: nobody has logged yet and the first run hasn't started
+      $('homeTitle').textContent='Moveathon starts soon';
+      var firstId=run.cohort.themeOrder[0];
+      $('homeStatus').innerHTML='<b>Mission 1 · '+themeName(firstId)+'</b> goes live '+fmtDate(run.date)+'. Come back then to log your first week and earn your badge.';
+    } else {
+      $('homeTitle').textContent='Move-a-thon is on a break';
+      var m='You’ve earned '+count+' of 6 badges. ';
+      if(run){ m+='The next run starts '+fmtDate(run.date)+'. Your remaining missions unlock then.'; }
+      else { m+='Watch for the next run to unlock your remaining missions.'; }
+      $('homeStatus').innerHTML=m;
+    }
     cta.style.display='none';
   }
 
@@ -766,13 +782,17 @@ function animateBadges(target){
   requestAnimationFrame(step);
 }
 function buildThemeStrip(ctx){
-  return THEMES.map(function(t){
+  var revealed=missionsRevealed();
+  return THEMES.map(function(t,i){
+    var n=i+1;                                   // mission number (week 1..6)
     var earned=!!badges[t.id];
     var live = ctx && ctx.themeId===t.id && !earned;
+    var nameShown = earned || live || n<=revealed;   // reveal the theme name only once the mission is revealed
     var cls='th'+(earned?' earned':(live?' live':''));
     var icon=earned?'✓':(live?'●':'🔒');
-    var st=earned?('Earned · '+badges[t.id].score+'/100'):(live?'Live this week':'Locked');
-    return '<div class="'+cls+'"><span class="ic">'+icon+'</span><span><span class="nm">'+t.name+'</span><span class="st">'+st+'</span></span></div>';
+    var nm = nameShown ? t.name : ('Mission '+n);
+    var st = earned?('Earned · '+badges[t.id].score+'/100'):(live?'Live this week':'Locked');
+    return '<div class="'+cls+'"><span class="ic">'+icon+'</span><span><span class="nm">'+nm+'</span><span class="st">'+st+'</span></span></div>';
   }).join('');
 }
 
