@@ -398,6 +398,7 @@
     <button class="btn big mt24" id="homeCta">Log this week →</button>
 
     <h2 class="mt24">Your 6 badges</h2>
+    <p class="muted" style="margin:-6px 0 0;font-size:14px;">Tap an earned badge to view it again or save it.</p>
     <div class="themestrip" id="themeStrip"></div>
 
     <button class="btn ghost mt16" id="homeGradBtn" style="display:none">View my certificate 🎓</button>
@@ -749,7 +750,8 @@ function renderHome(){
     var msg='You already have this week’s badge (<b>'+themeName(ctx.themeId)+'</b>). ';
     if(soonest){ msg+='Your next mission unlocks '+(soonest.info.live?'now':'on '+fmtDate(soonest.info.date))+'.'; }
     $('homeStatus').innerHTML=msg;
-    cta.style.display='none';
+    cta.style.display='flex'; cta.textContent='View & save my '+themeName(ctx.themeId)+' badge';
+    cta.disabled=false; cta.onclick=function(){ viewBadge(ctx.themeId); };
   } else {
     // break / between runs / before the first run
     var run=nextRunStart();
@@ -791,10 +793,14 @@ function buildThemeStrip(ctx){
     var cls='th'+(earned?' earned':(live?' live':''));
     var icon=earned?'✓':(live?'●':'🔒');
     var nm = nameShown ? t.name : ('Mission '+n);
-    var st = earned?('Earned · '+badges[t.id].score+'/100'):(live?'Live this week':'Locked');
-    return '<div class="'+cls+'"><span class="ic">'+icon+'</span><span><span class="nm">'+nm+'</span><span class="st">'+st+'</span></span></div>';
+    var st = earned?('Earned · '+badges[t.id].score+'/100 · tap to save'):(live?'Live this week':'Locked');
+    var tap = earned ? ' onclick="viewBadge('+t.id+')" style="cursor:pointer" title="View & save this badge"' : '';
+    return '<div class="'+cls+'"'+tap+'><span class="ic">'+icon+'</span><span><span class="nm">'+nm+'</span><span class="st">'+st+'</span></span></div>';
   }).join('');
 }
+/* Re-open a previously earned badge's certificate so members can view or save
+   it again at any time — even if they left before saving the first time. */
+function viewBadge(id){ if(badges[id]){ renderResult(badges[id]); show('result'); } }
 
 /* ================= WEEKLY WIZARD ================= */
 var draft=null, stepIdx=0, activeCtx=null;
