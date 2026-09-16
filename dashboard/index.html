@@ -280,9 +280,16 @@ function byMember(){
     var best4avg=best4.length?Math.round(best4.reduce(function(a,b){return a+b;},0)/best4.length):0;
     var avg=scores.length?Math.round(scores.reduce(function(a,b){return a+b;},0)/scores.length):0;
     var cohorts={}; e.badges.forEach(function(b){ if(b.cohort_id) cohorts[b.cohort_id]=1; });
+    // The member rollup (badges_earned) is the reliable count of missions earned.
+    // Detailed score rows can lag behind it until the member reopens the app and
+    // their phone uploads them — so count from the rollup, and flag the gap.
+    var rollup=Math.max(0, +e.info.badges_earned||0);
+    var withScore=ids.length;
+    var count=Math.max(withScore, rollup);
+    var pending=Math.max(0, count-withScore);   // missions earned but score not yet synced
     return { id:id, name:e.info.name||id, phone:e.info.phone||'', joinedCohort:e.info.cohort_joined||Object.keys(cohorts)[0]||'—',
-      joinWeek:e.info.join_program_week||null, themes:themes, count:ids.length, avg:avg, best4avg:best4avg,
-      graduated:ids.length>=6, distinction:(ids.length>=6 && best4avg>=CONFIG.DISTINCTION_THRESHOLD),
+      joinWeek:e.info.join_program_week||null, themes:themes, count:count, withScore:withScore, pending:pending,
+      avg:avg, best4avg:best4avg, graduated:count>=6, distinction:(withScore>=6 && best4avg>=CONFIG.DISTINCTION_THRESHOLD),
       cohorts:Object.keys(cohorts) };
   }).sort(function(a,b){ return b.count-a.count || (a.name>b.name?1:-1); });
 }
@@ -355,7 +362,7 @@ function memberRow(r){
     +'<td><div class="nm">'+esc(r.name)+'</div><div class="contact">'+esc(r.id)+(r.phone?(' · +'+esc(r.phone)):'')+'</div></td>'
     +'<td>'+joined+'</td>'
     +'<td>'+dots(r.count)+'</td>'
-    +'<td class="num">'+(r.count?r.avg:'—')+'</td>'
+    +'<td class="num">'+(r.withScore?(r.avg+(r.pending?' <span class="sub">(+'+r.pending+' syncing)</span>':'')):(r.count?'<span class="sub">syncing…</span>':'—'))+'</td>'
     +'<td>'+status+'</td>'
     +'<td>'+distinction+'</td></tr>';
   if(!expanded[r.id]) return main;
@@ -375,8 +382,10 @@ function memberRow(r){
       cells+= '<div class="tbadge miss"><div class="t">'+esc(name)+'</div><div class="m">not earned yet</div></div>';
     }
   }
+  var syncNote = r.pending ? '<div class="sub" style="color:#8a6d1a;margin-top:2px;">⏳ '+r.pending+' earned mission'+(r.pending===1?'':'s')+' — the score is saved on the member’s phone and will appear here once they reopen the app. Nothing is lost.</div>' : '';
   return main+'<tr class="detail"><td colspan="6"><div class="detailinner">'
-    +'<div class="sub">Avg score '+r.avg+' · best-4 avg '+r.best4avg+' · '+totSess+' sessions &amp; '+totAct+' activities across '+r.count+' mission'+(r.count===1?'':'s')+' · run(s): '+ (r.cohorts.join(', ')||'—') +'</div>'
+    +'<div class="sub">'+(r.withScore?('Avg score '+r.avg+' · best-4 avg '+r.best4avg+' · '+totSess+' sessions &amp; '+totAct+' activities across '+r.withScore+' scored mission'+(r.withScore===1?'':'s')):'Scores not uploaded yet')+' · run(s): '+ (r.cohorts.join(', ')||'—') +'</div>'
+    +syncNote
     +'<div class="themeline">'+cells+'</div></div></td></tr>';
 }
 function esc(s){ return (''+s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
