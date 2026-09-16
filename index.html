@@ -648,7 +648,7 @@ function pushMember(){
   if(CONFIG.SHEET_WEBHOOK_URL){ fetch(CONFIG.SHEET_WEBHOOK_URL,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(Object.assign({kind:'member'},row))}).catch(function(){}); }
 }
 function pushBadge(b){
-  var row={ member_id:profile.email, name:profile.name, phone:profile.phone,
+  var row={ member_id:profile.email,
             theme_id:b.themeId, theme_name:b.themeName, cohort_id:b.cohortId, program_week:b.programWeek,
             score:b.score, pain:b.pillars.Pain, confidence:b.pillars.Confidence, movement:b.pillars.Movement,
             strength:b.pillars.Strength, consistency:b.pillars.Consistency, challenges:b.pillars.Activities, reps:b.reps,
@@ -935,7 +935,13 @@ $('gradSave').onclick=function(){
 $('gradHome').onclick=function(){ renderHome(); show('home'); };
 
 /* ================= boot ================= */
-if(profile && profile.email){ renderHome(); show('home'); } else { show('signup'); }
+/* Re-sync this member's locally-stored badges to Supabase. Idempotent (upsert),
+   so it also backfills badges earned before the save bug was fixed. */
+function syncLocalToSupabase(){
+  if(!hasSupabase() || !profile || !profile.email) return;
+  try{ pushMember(); Object.keys(badges).forEach(function(id){ pushBadge(badges[id]); }); }catch(e){}
+}
+if(profile && profile.email){ syncLocalToSupabase(); renderHome(); show('home'); } else { show('signup'); }
 </script>
 </body>
 </html>
