@@ -547,7 +547,10 @@ function $(id){ return document.getElementById(id); }
 function show(v){ document.querySelectorAll('.view').forEach(function(x){x.classList.remove('active');}); $('view-'+v).classList.add('active'); window.scrollTo(0,0); }
 function load(k){ try{ return JSON.parse(localStorage.getItem(k)); }catch(e){ return null; } }
 function save(k,v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
-function today(){ return window.__MPS_NOW ? new Date(window.__MPS_NOW) : new Date(); } // __MPS_NOW = test hook
+/* Staff preview: open ...?preview=YYYY-MM-DD to view the app as if it were that
+   date (e.g. to check an upcoming week). Members never use this param. */
+try{ var _pv=new URLSearchParams(location.search).get('preview'); if(_pv && /^\d{4}-\d{2}-\d{2}/.test(_pv)){ window.__MPS_NOW=_pv+'T10:00:00'; } }catch(e){}
+function today(){ return window.__MPS_NOW ? new Date(window.__MPS_NOW) : new Date(); } // __MPS_NOW = test/preview hook
 function phoneKey(p){ return (p||'').replace(/\D/g,''); } // digits only, so 'same phone' matches regardless of + / spaces
 function themeName(id){ for(var i=0;i<THEMES.length;i++){ if(THEMES[i].id===id) return THEMES[i].name; } return 'Theme '+id; }
 function fmtDate(d){ return d.toLocaleDateString(undefined,{day:'numeric',month:'short'}); }
