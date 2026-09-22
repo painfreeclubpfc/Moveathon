@@ -523,9 +523,9 @@ var CONFIG = {
 var THEMES = [
   { id:1, name:'Identity',  badge:'badges/identity.png',  motivation:'You proved your pain is not your identity — your consistency is.' },
   { id:2, name:'Fuel',      badge:'badges/fuel.png',      motivation:'You fuelled your body and kept showing up — the right fuel and steady movement are how strength is rebuilt.' },
-  { id:3, name:'Mobility',  badge:'badges/mobility.png',  motivation:'Every honest rep this week bought you a little more freedom to move.' },
-  { id:4, name:'Balance',   badge:'badges/balance.png',   motivation:'Steady, balanced, consistent — that is how real recovery is built.' },
-  { id:5, name:'Endurance', badge:'badges/endurance.png', motivation:'You kept going when it was easier to stop. That is endurance.' },
+  { id:3, name:'Rebuild',   badge:'badges/rebuild.png',   motivation:'Every honest rep and session this week helped rebuild what pain took — strength returns one effort at a time.' },
+  { id:4, name:'Harmony',   badge:'badges/harmony.png',   motivation:'Body and mind moving together — that harmony is what steady recovery feels like.' },
+  { id:5, name:'Rhythm',    badge:'badges/rhythm.png',    motivation:'You found your rhythm — showing up again and again is how lasting change is made.' },
   { id:6, name:'Freedom',   badge:'badges/freedom.png',   motivation:'Six weeks of showing up — this is what moving freely feels like.' }
 ];
 function themeOf(id){ for(var i=0;i<THEMES.length;i++){ if(THEMES[i].id===id) return THEMES[i]; } return {id:id,name:'Theme '+id,badge:'',motivation:''}; }
@@ -718,6 +718,26 @@ $('homeReset').addEventListener('click', function(e){
   }
 });
 
+/* ================= backfill: any revealed, unearned mission stays open =======
+   Members who missed an earlier week can still fill it while the run is on. */
+function openMissions(){
+  var ctx=activeContext(); if(!ctx) return [];
+  var c=ctx.cohort, out=[];
+  for(var wk=1; wk<=ctx.programWeek; wk++){ var id=c.themeOrder[wk-1]; if(id && !badges[id]) out.push(id); }
+  return out; // ids of revealed (this-or-earlier-week) missions not yet earned, in week order
+}
+function missionLoggable(id){
+  var ctx=activeContext(); if(!ctx || badges[id]) return false;
+  var wkIdx=ctx.cohort.themeOrder.indexOf(id);
+  return wkIdx>=0 && (wkIdx+1)<=ctx.programWeek;
+}
+function ctxForTheme(id){
+  var ctx=activeContext(); if(!ctx) return null;
+  var wkIdx=ctx.cohort.themeOrder.indexOf(id); if(wkIdx<0) return null;
+  return { cohort:ctx.cohort, programWeek:wkIdx+1, themeId:id };
+}
+function logMission(id){ if(missionLoggable(id)){ startWeek(ctxForTheme(id)); } }
+
 /* ================= HOME ================= */
 function renderHome(){
   var first=(profile.name||'friend').split(' ')[0];
@@ -738,23 +758,33 @@ function renderHome(){
     $('homeStatus').innerHTML='Your Move-a-thon is complete. Tap below for your certificate.';
     cta.style.display='none';
   } else if(ctx && !badges[ctx.themeId]){
-    // a theme is live this week and the member still needs it
+    // this week's mission is live and still needed
+    var missed=openMissions().filter(function(id){ return id!==ctx.themeId; }); // earlier weeks still open
     $('homeTitle').textContent='This week: '+themeName(ctx.themeId);
-    $('homeStatus').innerHTML='<b>'+themeName(ctx.themeId)+'</b> is live now — Mission '+ctx.programWeek+' of 6. Log it this week to earn badge '+(count+1)+' of 6.';
+    var s='<b>'+themeName(ctx.themeId)+'</b> is live now — Mission '+ctx.programWeek+' of 6. Log it this week to earn badge '+(count+1)+' of 6.';
+    if(missed.length){ s+=' You can also still complete '+(missed.length===1?'an earlier mission':(missed.length+' earlier missions'))+' — tap '+(missed.length===1?'it':'them')+' below.'; }
+    $('homeStatus').innerHTML=s;
     cta.style.display='flex'; cta.textContent='Log '+themeName(ctx.themeId)+' →';
     cta.disabled=false; cta.onclick=function(){ startWeek(ctx); };
   } else if(ctx && badges[ctx.themeId]){
-    // live theme already earned -> can't backfill; point to next missing theme
-    var miss=missingThemeIds();
-    var nxt=miss.length?nextLiveOfTheme(miss[0]):null;
-    // choose the earliest-going-live missing theme
-    var soonest=null; miss.forEach(function(id){ var n=nextLiveOfTheme(id); if(n && (!soonest||n.date<soonest.date)) soonest={id:id,info:n}; });
-    $('homeTitle').textContent="You're up to date ✓";
-    var msg='You already have this week’s badge (<b>'+themeName(ctx.themeId)+'</b>). ';
-    if(soonest){ msg+='Your next mission unlocks '+(soonest.info.live?'now':'on '+fmtDate(soonest.info.date))+'.'; }
-    $('homeStatus').innerHTML=msg;
-    cta.style.display='flex'; cta.textContent='View & save my '+themeName(ctx.themeId)+' badge';
-    cta.disabled=false; cta.onclick=function(){ viewBadge(ctx.themeId); };
+    var missed2=openMissions(); // this week is earned, so these are earlier weeks still open
+    if(missed2.length){
+      // has this week's badge but missed an earlier week -> let them catch up
+      $('homeTitle').textContent='Catch up on an earlier mission';
+      $('homeStatus').innerHTML='You have this week’s badge (<b>'+themeName(ctx.themeId)+'</b>). You can still complete '+(missed2.length===1?'the mission you missed':(missed2.length+' missions you missed'))+' — tap '+(missed2.length===1?'it':'one')+' below, or use the button.';
+      cta.style.display='flex'; cta.textContent='Log '+themeName(missed2[0])+' →';
+      cta.disabled=false; cta.onclick=function(){ logMission(missed2[0]); };
+    } else {
+      // fully up to date
+      var miss=missingThemeIds();
+      var soonest=null; miss.forEach(function(id){ var n=nextLiveOfTheme(id); if(n && (!soonest||n.date<soonest.date)) soonest={id:id,info:n}; });
+      $('homeTitle').textContent="You're up to date ✓";
+      var msg='You already have this week’s badge (<b>'+themeName(ctx.themeId)+'</b>). ';
+      if(soonest){ msg+='Your next mission unlocks '+(soonest.info.live?'now':'on '+fmtDate(soonest.info.date))+'.'; }
+      $('homeStatus').innerHTML=msg;
+      cta.style.display='flex'; cta.textContent='View & save my '+themeName(ctx.themeId)+' badge';
+      cta.disabled=false; cta.onclick=function(){ viewBadge(ctx.themeId); };
+    }
   } else {
     // break / between runs / before the first run
     var run=nextRunStart();
@@ -791,13 +821,18 @@ function buildThemeStrip(ctx){
   return THEMES.map(function(t,i){
     var n=i+1;                                   // mission number (week 1..6)
     var earned=!!badges[t.id];
-    var live = ctx && ctx.themeId===t.id && !earned;
-    var nameShown = earned || live || n<=revealed;   // reveal the theme name only once the mission is revealed
-    var cls='th'+(earned?' earned':(live?' live':''));
-    var icon=earned?'✓':(live?'●':'🔒');
+    var open = !earned && missionLoggable(t.id);  // live this week OR an earlier week still open to fill
+    var isLive = ctx && ctx.themeId===t.id && !earned;
+    var nameShown = earned || open || n<=revealed;   // reveal the theme name only once the mission is revealed
+    var cls='th'+(earned?' earned':(open?' live':''));
+    var icon=earned?'✓':(open?'●':'🔒');
     var nm = nameShown ? t.name : ('Mission '+n);
-    var st = earned?('Earned · '+badges[t.id].score+'/100 · tap to save'):(live?'Live this week':'Locked');
-    var tap = earned ? ' onclick="viewBadge('+t.id+')" style="cursor:pointer" title="View & save this badge"' : '';
+    var st = earned?('Earned · '+badges[t.id].score+'/100 · tap to save')
+           : open?(isLive?'Live this week · tap to log':'Open — tap to log')
+           : 'Locked';
+    var tap = earned ? ' onclick="viewBadge('+t.id+')" style="cursor:pointer" title="View & save this badge"'
+            : open ? ' onclick="logMission('+t.id+')" style="cursor:pointer" title="Log this mission"'
+            : '';
     return '<div class="'+cls+'"'+tap+'><span class="ic">'+icon+'</span><span><span class="nm">'+nm+'</span><span class="st">'+st+'</span></span></div>';
   }).join('');
 }
