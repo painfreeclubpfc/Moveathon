@@ -112,6 +112,7 @@
   tr.mrow:hover{background:var(--surface-2);}
   td .nm{font-weight:700;}
   td .contact{color:var(--mut);font-size:12.5px;}
+  td .goal{color:var(--navy);font-size:12.5px;font-style:italic;margin-top:3px;max-width:320px;}
   .dots{display:inline-flex;gap:4px;}
   .dot{width:15px;height:15px;border-radius:50%;background:var(--line);border:1px solid var(--line);}
   .dot.on{background:var(--gold);border-color:var(--gold-d);}
@@ -287,7 +288,7 @@ function byMember(){
     var withScore=ids.length;
     var count=Math.max(withScore, rollup);
     var pending=Math.max(0, count-withScore);   // missions earned but score not yet synced
-    return { id:id, name:e.info.name||id, phone:e.info.phone||'', joinedCohort:e.info.cohort_joined||Object.keys(cohorts)[0]||'—',
+    return { id:id, name:e.info.name||id, phone:e.info.phone||'', goal:e.info.goal||'', joinedCohort:e.info.cohort_joined||Object.keys(cohorts)[0]||'—',
       joinWeek:e.info.join_program_week||null, themes:themes, count:count, withScore:withScore, pending:pending,
       avg:avg, best4avg:best4avg, graduated:count>=6, distinction:(withScore>=6 && best4avg>=CONFIG.DISTINCTION_THRESHOLD),
       cohorts:Object.keys(cohorts) };
@@ -359,7 +360,7 @@ function memberRow(r){
   var status=r.graduated?'<span class="pill grad">✓ Complete</span>':'<span class="pill active">'+r.count+'/6</span>';
   var distinction=r.distinction?'<span class="star">★ Yes</span>':'<span class="sub">—</span>';
   var main='<tr class="mrow" id="row-'+cssId(r.id)+'">'
-    +'<td><div class="nm">'+esc(r.name)+'</div><div class="contact">'+esc(r.id)+(r.phone?(' · +'+esc(r.phone)):'')+'</div></td>'
+    +'<td><div class="nm">'+esc(r.name)+'</div><div class="contact">'+esc(r.id)+(r.phone?(' · +'+esc(r.phone)):'')+'</div>'+(r.goal?('<div class="goal">🎯 '+esc(r.goal)+'</div>'):'')+'</td>'
     +'<td>'+joined+'</td>'
     +'<td>'+dots(r.count)+'</td>'
     +'<td class="num">'+(r.withScore?(r.avg+(r.pending?' <span class="sub">(+'+r.pending+' syncing)</span>':'')):(r.count?'<span class="sub">syncing…</span>':'—'))+'</td>'
@@ -384,6 +385,7 @@ function memberRow(r){
   }
   var syncNote = r.pending ? '<div class="sub" style="color:#8a6d1a;margin-top:2px;">⏳ '+r.pending+' earned mission'+(r.pending===1?'':'s')+' — the score is saved on the member’s phone and will appear here once they reopen the app. Nothing is lost.</div>' : '';
   return main+'<tr class="detail"><td colspan="6"><div class="detailinner">'
+    +(r.goal?'<div class="sub" style="font-size:13.5px;color:var(--navy);margin-bottom:6px;">🎯 <b>Goal:</b> <i>'+esc(r.goal)+'</i></div>':'')
     +'<div class="sub">'+(r.withScore?('Avg score '+r.avg+' · best-4 avg '+r.best4avg+' · '+totSess+' sessions &amp; '+totAct+' activities across '+r.withScore+' scored mission'+(r.withScore===1?'':'s')):'Scores not uploaded yet')+' · run(s): '+ (r.cohorts.join(', ')||'—') +'</div>'
     +syncNote
     +'<div class="themeline">'+cells+'</div></div></td></tr>';
@@ -415,9 +417,9 @@ function parseCsv(t){ var rows=[],row=[],cur='',q=false; for(var i=0;i<t.length;
   if(cur.length||row.length){ row.push(cur); rows.push(row); } return rows; }
 
 document.getElementById('exportBtn').onclick=function(){
-  var rows=byMember(); var head=['name','email','phone','joined_cohort','join_week','badges_earned','avg_score','best4_avg','status','distinction','cohorts'];
+  var rows=byMember(); var head=['name','email','phone','goal','joined_cohort','join_week','badges_earned','avg_score','best4_avg','status','distinction','cohorts'];
   var lines=[head.join(',')];
-  rows.forEach(function(r){ lines.push([q(r.name),q(r.id),q(r.phone),r.joinedCohort,r.joinWeek||'',r.count,r.avg,r.best4avg,
+  rows.forEach(function(r){ lines.push([q(r.name),q(r.id),q(r.phone),q(r.goal),r.joinedCohort,r.joinWeek||'',r.count,r.avg,r.best4avg,
     r.graduated?'complete':'in_progress', r.distinction?'yes':'no', q(r.cohorts.join(' '))].join(',')); });
   function q(s){ s=(''+ (s==null?'':s)); return /[",\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s; }
   var blob=new Blob([lines.join('\n')],{type:'text/csv'}); var a=document.createElement('a');
