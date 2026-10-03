@@ -217,8 +217,23 @@ var CONFIG = {
   MEMBERS_TABLE:     'moveathon_members',
   BADGES_TABLE:      'moveathon_badges',
   PASSCODE:          '',   // optional light gate; '' = no gate
-  DISTINCTION_THRESHOLD: 75
+  DISTINCTION_THRESHOLD: 75,
+  /* Diamond members — paste their emails and/or phone numbers (any format).
+     Anyone here is marked with 💎 in the list. e.g. 'asha@gmail.com', '+91 98765 43210' */
+  DIAMOND_MEMBERS: [
+
+  ]
 };
+/* normalise the diamond list into lookup sets (lowercased emails, digits-only phones) */
+var DIAMOND_SET = (function(){ var s={}; (CONFIG.DIAMOND_MEMBERS||[]).forEach(function(v){
+  v=(''+v).trim(); if(!v) return;
+  if(v.indexOf('@')>=0) s['e:'+v.toLowerCase()]=1; else { var d=v.replace(/\D/g,''); if(d){ s['p:'+d]=1; s['p:'+d.replace(/^91/,'')]=1; } }
+}); return s; })();
+function isDiamond(r){
+  if(r.id && DIAMOND_SET['e:'+(''+r.id).toLowerCase()]) return true;
+  var d=(''+(r.phone||'')).replace(/\D/g,''); if(!d) return false;
+  return !!(DIAMOND_SET['p:'+d] || DIAMOND_SET['p:'+d.replace(/^91/,'')]);
+}
 var THEME_ORDER = [1,2,3,4,5,6]; // display order for theme coverage
 
 /* ================= sample data (shown when no backend configured) ================= */
@@ -360,7 +375,7 @@ function memberRow(r){
   var status=r.graduated?'<span class="pill grad">✓ Complete</span>':'<span class="pill active">'+r.count+'/6</span>';
   var distinction=r.distinction?'<span class="star">★ Yes</span>':'<span class="sub">—</span>';
   var main='<tr class="mrow" id="row-'+cssId(r.id)+'">'
-    +'<td><div class="nm">'+esc(r.name)+'</div><div class="contact">'+esc(r.id)+(r.phone?(' · +'+esc(r.phone)):'')+'</div>'+(r.goal?('<div class="goal">🎯 '+esc(r.goal)+'</div>'):'')+'</td>'
+    +'<td><div class="nm">'+(isDiamond(r)?'💎 ':'')+esc(r.name)+'</div><div class="contact">'+esc(r.id)+(r.phone?(' · +'+esc(r.phone)):'')+'</div>'+(r.goal?('<div class="goal">🎯 '+esc(r.goal)+'</div>'):'')+'</td>'
     +'<td>'+joined+'</td>'
     +'<td>'+dots(r.count)+'</td>'
     +'<td class="num">'+(r.withScore?(r.avg+(r.pending?' <span class="sub">(+'+r.pending+' syncing)</span>':'')):(r.count?'<span class="sub">syncing…</span>':'—'))+'</td>'
@@ -417,9 +432,9 @@ function parseCsv(t){ var rows=[],row=[],cur='',q=false; for(var i=0;i<t.length;
   if(cur.length||row.length){ row.push(cur); rows.push(row); } return rows; }
 
 document.getElementById('exportBtn').onclick=function(){
-  var rows=byMember(); var head=['name','email','phone','goal','joined_cohort','join_week','badges_earned','avg_score','best4_avg','status','distinction','cohorts'];
+  var rows=byMember(); var head=['name','email','phone','diamond','goal','joined_cohort','join_week','badges_earned','avg_score','best4_avg','status','distinction','cohorts'];
   var lines=[head.join(',')];
-  rows.forEach(function(r){ lines.push([q(r.name),q(r.id),q(r.phone),q(r.goal),r.joinedCohort,r.joinWeek||'',r.count,r.avg,r.best4avg,
+  rows.forEach(function(r){ lines.push([q(r.name),q(r.id),q(r.phone),isDiamond(r)?'yes':'no',q(r.goal),r.joinedCohort,r.joinWeek||'',r.count,r.avg,r.best4avg,
     r.graduated?'complete':'in_progress', r.distinction?'yes':'no', q(r.cohorts.join(' '))].join(',')); });
   function q(s){ s=(''+ (s==null?'':s)); return /[",\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s; }
   var blob=new Blob([lines.join('\n')],{type:'text/csv'}); var a=document.createElement('a');
