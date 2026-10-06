@@ -524,8 +524,8 @@ var THEMES = [
   { id:1, name:'Identity',  badge:'badges/identity.png',  motivation:'You proved your pain is not your identity — your consistency is.' },
   { id:2, name:'Fuel',      badge:'badges/fuel.png',      motivation:'You fuelled your body and kept showing up — the right fuel and steady movement are how strength is rebuilt.' },
   { id:3, name:'Rebuild',   badge:'badges/rebuild.png',   motivation:'Every honest rep and session this week helped rebuild what pain took — strength returns one effort at a time.' },
-  { id:4, name:'Harmony',   badge:'badges/harmony.png',   motivation:'Body and mind moving together — that harmony is what steady recovery feels like.' },
-  { id:5, name:'Rhythm',    badge:'badges/rhythm.png',    motivation:'You found your rhythm — showing up again and again is how lasting change is made.' },
+  { id:4, name:'Rhythm',    badge:'badges/rhythm.png',    motivation:'You found your rhythm — showing up again and again is how lasting change is made.' },
+  { id:5, name:'Harmony',   badge:'badges/harmony.png',   motivation:'Body and mind moving together — that harmony is what steady recovery feels like.' },
   { id:6, name:'Freedom',   badge:'badges/freedom.png',   motivation:'Six weeks of showing up — this is what moving freely feels like.' }
 ];
 function themeOf(id){ for(var i=0;i<THEMES.length;i++){ if(THEMES[i].id===id) return THEMES[i]; } return {id:id,name:'Theme '+id,badge:'',motivation:''}; }
@@ -880,9 +880,9 @@ function stepMove(){ var b=$('stepBody'); b.innerHTML=qHead('How much does your 
   radioGroup(box,['Stops me from most activities','Limits me on most days','Limits me sometimes','Rarely limits me','Does not limit me'],draft.moveBand,function(i){draft.moveBand=i;}); }
 function stepStrength(){ var b=$('stepBody'); b.innerHTML=qHead('30-second Sit-to-Stand test','Count how many times you can stand up from a chair and sit back down in 30 seconds. Just do your best today — there’s no wrong number.');
   var wrap=document.createElement('div'); wrap.className='stepper mt24'; wrap.innerHTML='<button type="button" id="repMinus">−</button><div class="val" id="repVal">'+draft.reps+'</div><button type="button" id="repPlus">+</button>'; b.appendChild(wrap);
-  var lbl=document.createElement('p'); lbl.className='muted center mt16'; lbl.textContent='reps in 30 seconds'; b.appendChild(lbl);
+  var lbl=document.createElement('p'); lbl.className='muted center mt16'; lbl.textContent='reps in 30 seconds (max 20)'; b.appendChild(lbl);
   wrap.querySelector('#repMinus').onclick=function(){ draft.reps=Math.max(0,draft.reps-1); $('repVal').textContent=draft.reps; };
-  wrap.querySelector('#repPlus').onclick=function(){ draft.reps=draft.reps+1; $('repVal').textContent=draft.reps; }; }
+  wrap.querySelector('#repPlus').onclick=function(){ draft.reps=Math.min(20,draft.reps+1); $('repVal').textContent=draft.reps; }; }
 function stepConsistency(){ var b=$('stepBody'); b.innerHTML=qHead('Which sessions did you complete this week?','Live or recorded both count. Tick everything you did.');
   var items=[['y1','Yoga session 1'],['y2','Yoga session 2'],['p1','Physio session 1'],['p2','Physio session 2'],['ic','Inner Circle call']];
   var box=document.createElement('div'); box.className='mt16'; b.appendChild(box);
