@@ -3,6 +3,11 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<!-- Resolve relative asset paths correctly whether this app is served at a
+     domain root (…vercel.app/) or proxied under /moveathon (with OR without a
+     trailing slash). Fixes broken logo/badge images behind the painfreeclub.in
+     proxy, which strips the trailing slash. Must run before any asset loads. -->
+<script>(function(){try{var p=location.pathname;var b=/^\/moveathon(\/|$)/.test(p)?'/moveathon/':p.replace(/[^\/]*$/,'');document.write('<base href="'+b+'">');}catch(e){}})();</script>
 <title>Move-a-thon Progress Score — Pain Free Club</title>
 <!--
   ================================================================
