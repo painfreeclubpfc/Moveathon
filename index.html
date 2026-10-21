@@ -406,7 +406,6 @@
     <p class="muted" style="margin:-6px 0 0;font-size:14px;">Tap an earned badge to view it again or save it.</p>
     <div class="themestrip" id="themeStrip"></div>
 
-    <button class="btn ghost mt16" id="homeGradBtn" style="display:none">View my certificate 🎓</button>
 
     <p class="footnote">Signed in as <span id="homeWho"></span>. <a href="#" id="homeReset" style="color:var(--gold-d);font-weight:700">Not you?</a></p>
   </section>
@@ -760,7 +759,7 @@ function renderHome(){
 
   if(done){
     $('homeTitle').textContent='All 6 badges earned 🎉';
-    $('homeStatus').innerHTML='Your Move-a-thon is complete. Tap below for your certificate.';
+    $('homeStatus').innerHTML='Your Move-a-thon is complete — all six badges earned. You can view and save any of your badges from the grid below.';
     cta.style.display='none';
   } else if(ctx && !badges[ctx.themeId]){
     // this week's mission is live and still needed
@@ -809,8 +808,6 @@ function renderHome(){
   }
 
   $('themeStrip').innerHTML = buildThemeStrip(ctx);
-  $('homeGradBtn').style.display = done?'flex':'none';
-  $('homeGradBtn').onclick=function(){ renderGraduation(); show('graduation'); };
 }
 function animateBadges(target){
   var C=578, ring=$('homeRing'), num=$('homeNum');
