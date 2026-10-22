@@ -341,6 +341,12 @@
 <main class="wrap pagepad">
 
   <!-- ============ SIGNUP ============ -->
+  <section id="view-closed" class="view center">
+    <span class="eyebrow">Move-a-thon</span>
+    <h1 class="mt8">The tracker is closed</h1>
+    <p class="lead" id="closedNote">The Move-a-thon tracker is now closed — thank you to everyone who took part! 🎉</p>
+  </section>
+
   <section id="view-signup" class="view">
     <span class="eyebrow">Welcome to Moveathon</span>
     <h1 class="mt8">Let's set up your<br>6-week journey</h1>
@@ -505,6 +511,11 @@
 <script>
 /* ================= CONFIG — edit these ================= */
 var CONFIG = {
+  /* Master switch: when true the tracker is CLOSED — no new sign-ups and no
+     score logging. Members who already joined can still open the app and
+     view/save the badges they earned. Set back to false to re-open. */
+  CLOSED:           true,
+  CLOSED_NOTE:      'The Move-a-thon tracker is now closed — thank you to everyone who took part! 🎉',
   SANYA_WHATSAPP:   'SANYA_WHATSAPP', // full intl digits, no + (e.g. 919876543210)
   COMMUNITY_URL:    'COMMUNITY_URL',  // link to community dashboard
   SUPABASE_URL:     'https://ojlolgojaqmftnsryxuw.supabase.co',
@@ -705,6 +716,7 @@ function restoreIdentity(email, phone){
 /* ================= SIGNUP ================= */
 $('signupForm').addEventListener('submit', function(e){
   e.preventDefault();
+  if(CONFIG.CLOSED){ show('closed'); return; } // tracker closed: no new sign-ups
   var f=e.target; if(!f.checkValidity()){ f.reportValidity(); return; }
   var dial=phoneKey(f.cc.value), local=phoneKey(f.phone.value);
   profile={ name:f.name.value.trim(), email:f.email.value.trim().toLowerCase(),
@@ -740,7 +752,7 @@ function ctxForTheme(id){
   var wkIdx=ctx.cohort.themeOrder.indexOf(id); if(wkIdx<0) return null;
   return { cohort:ctx.cohort, programWeek:wkIdx+1, themeId:id };
 }
-function logMission(id){ if(missionLoggable(id)){ startWeek(ctxForTheme(id)); } }
+function logMission(id){ if(CONFIG.CLOSED) return; if(missionLoggable(id)){ startWeek(ctxForTheme(id)); } }
 
 /* ================= HOME ================= */
 function renderHome(){
@@ -757,7 +769,12 @@ function renderHome(){
   var cta=$('homeCta');
   var done = count>=6;
 
-  if(done){
+  if(CONFIG.CLOSED){
+    $('homeTitle').textContent = done ? 'All 6 badges earned 🎉' : 'Move-a-thon closed';
+    $('homeStatus').innerHTML = CONFIG.CLOSED_NOTE +
+      (count ? ' Your '+count+' badge'+(count>1?'s are':' is')+' saved — tap any earned badge below to view or save it.' : '');
+    cta.style.display='none';
+  } else if(done){
     $('homeTitle').textContent='All 6 badges earned 🎉';
     $('homeStatus').innerHTML='Your Move-a-thon is complete — all six badges earned. You can view and save any of your badges from the grid below.';
     cta.style.display='none';
@@ -824,16 +841,18 @@ function buildThemeStrip(ctx){
     var n=i+1;                                   // mission number (week 1..6)
     var earned=!!badges[t.id];
     var open = !earned && missionLoggable(t.id);  // live this week OR an earlier week still open to fill
+    var loggable = open && !CONFIG.CLOSED;         // closed tracker: reveal/label but no logging
     var isLive = ctx && ctx.themeId===t.id && !earned;
     var nameShown = earned || open || n<=revealed;   // reveal the theme name only once the mission is revealed
     var cls='th'+(earned?' earned':(open?' live':''));
     var icon=earned?'✓':(open?'●':'🔒');
     var nm = nameShown ? t.name : ('Mission '+n);
     var st = earned?('Earned · '+badges[t.id].score+'/100 · tap to save')
-           : open?(isLive?'Live this week · tap to log':'Open — tap to log')
+           : loggable?(isLive?'Live this week · tap to log':'Open — tap to log')
+           : open?'Closed'
            : 'Locked';
     var tap = earned ? ' onclick="viewBadge('+t.id+')" style="cursor:pointer" title="View & save this badge"'
-            : open ? ' onclick="logMission('+t.id+')" style="cursor:pointer" title="Log this mission"'
+            : loggable ? ' onclick="logMission('+t.id+')" style="cursor:pointer" title="Log this mission"'
             : '';
     return '<div class="'+cls+'"'+tap+'><span class="ic">'+icon+'</span><span><span class="nm">'+nm+'</span><span class="st">'+st+'</span></span></div>';
   }).join('');
@@ -854,6 +873,7 @@ var STEPS=[
   {cat:'Your goal', build:stepCloseness, valid:function(){return draft.closeness!=null;}}
 ];
 function startWeek(ctx){
+  if(CONFIG.CLOSED) return;               // tracker closed: no logging
   if(!ctx || badges[ctx.themeId]) return; // dosage guard: only the live, unearned theme
   activeCtx=ctx; stepIdx=0;
   draft={ painBand:null, confBand:null, moveBand:null, reps:0,
@@ -903,6 +923,7 @@ $('stepBack').onclick=function(){ if(stepIdx>0){ stepIdx--; renderStep(); } };
 $('stepNext').onclick=function(){ var s=STEPS[stepIdx]; if(!s.valid()){ alert('Please choose an answer to continue.'); return; } if(stepIdx<STEPS.length-1){ stepIdx++; renderStep(); } else { earnBadge(); } };
 
 function earnBadge(){
+  if(CONFIG.CLOSED) return;               // tracker closed: no new badges saved
   var p=pillarsFromDraft(draft), total=sumPillars(p), id=activeCtx.themeId;
   if(!profile.joinedCohort){ profile.joinedCohort=activeCtx.cohort.id; profile.joinedProgramWeek=activeCtx.programWeek; save('mps_profile',profile); }
   var b={ themeId:id, themeName:themeName(id), cohortId:activeCtx.cohort.id, programWeek:activeCtx.programWeek,
@@ -987,7 +1008,10 @@ function syncLocalToSupabase(){
   if(!hasSupabase() || !profile || !profile.email) return;
   try{ pushMember(); Object.keys(badges).forEach(function(id){ pushBadge(badges[id]); }); }catch(e){}
 }
-if(profile && profile.email){ syncLocalToSupabase(); renderHome(); show('home'); } else { show('signup'); }
+if(CONFIG.CLOSED){ $('closedNote').textContent=CONFIG.CLOSED_NOTE; }
+if(profile && profile.email){ syncLocalToSupabase(); renderHome(); show('home'); }
+else if(CONFIG.CLOSED){ show('closed'); }
+else { show('signup'); }
 </script>
 </body>
 </html>
