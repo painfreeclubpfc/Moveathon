@@ -515,6 +515,10 @@ var CONFIG = {
      score logging. Members who already joined can still open the app and
      view/save the badges they earned. Set back to false to re-open. */
   CLOSED:           true,
+  /* Temporary re-open: while the real clock is before this ISO time, the
+     tracker behaves as OPEN even though CLOSED is true. After it passes it
+     auto-closes again — no code change needed. Set to '' to disable. */
+  REOPEN_UNTIL:     '2026-10-22T12:50:00Z',
   CLOSED_NOTE:      'The Move-a-thon tracker is now closed — thank you to everyone who took part! 🎉',
   SANYA_WHATSAPP:   'SANYA_WHATSAPP', // full intl digits, no + (e.g. 919876543210)
   COMMUNITY_URL:    'COMMUNITY_URL',  // link to community dashboard
@@ -716,7 +720,7 @@ function restoreIdentity(email, phone){
 /* ================= SIGNUP ================= */
 $('signupForm').addEventListener('submit', function(e){
   e.preventDefault();
-  if(CONFIG.CLOSED){ show('closed'); return; } // tracker closed: no new sign-ups
+  if(trackerClosed()){ show('closed'); return; } // tracker closed: no new sign-ups
   var f=e.target; if(!f.checkValidity()){ f.reportValidity(); return; }
   var dial=phoneKey(f.cc.value), local=phoneKey(f.phone.value);
   profile={ name:f.name.value.trim(), email:f.email.value.trim().toLowerCase(),
@@ -752,7 +756,15 @@ function ctxForTheme(id){
   var wkIdx=ctx.cohort.themeOrder.indexOf(id); if(wkIdx<0) return null;
   return { cohort:ctx.cohort, programWeek:wkIdx+1, themeId:id };
 }
-function logMission(id){ if(CONFIG.CLOSED) return; if(missionLoggable(id)){ startWeek(ctxForTheme(id)); } }
+/* Is the tracker closed right now? CLOSED is the master state, but a
+   REOPEN_UNTIL in the future temporarily overrides it to OPEN (real wall
+   clock, not the preview date), auto-closing again once it passes. */
+function trackerClosed(){
+  if(!CONFIG.CLOSED) return false;
+  if(CONFIG.REOPEN_UNTIL){ var t=Date.parse(CONFIG.REOPEN_UNTIL); if(!isNaN(t) && Date.now()<t) return false; }
+  return true;
+}
+function logMission(id){ if(trackerClosed()) return; if(missionLoggable(id)){ startWeek(ctxForTheme(id)); } }
 
 /* ================= HOME ================= */
 function renderHome(){
@@ -769,7 +781,7 @@ function renderHome(){
   var cta=$('homeCta');
   var done = count>=6;
 
-  if(CONFIG.CLOSED){
+  if(trackerClosed()){
     $('homeTitle').textContent = done ? 'All 6 badges earned 🎉' : 'Move-a-thon closed';
     $('homeStatus').innerHTML = CONFIG.CLOSED_NOTE +
       (count ? ' Your '+count+' badge'+(count>1?'s are':' is')+' saved — tap any earned badge below to view or save it.' : '');
@@ -841,7 +853,7 @@ function buildThemeStrip(ctx){
     var n=i+1;                                   // mission number (week 1..6)
     var earned=!!badges[t.id];
     var open = !earned && missionLoggable(t.id);  // live this week OR an earlier week still open to fill
-    var loggable = open && !CONFIG.CLOSED;         // closed tracker: reveal/label but no logging
+    var loggable = open && !trackerClosed();       // closed tracker: reveal/label but no logging
     var isLive = ctx && ctx.themeId===t.id && !earned;
     var nameShown = earned || open || n<=revealed;   // reveal the theme name only once the mission is revealed
     var cls='th'+(earned?' earned':(open?' live':''));
@@ -873,7 +885,7 @@ var STEPS=[
   {cat:'Your goal', build:stepCloseness, valid:function(){return draft.closeness!=null;}}
 ];
 function startWeek(ctx){
-  if(CONFIG.CLOSED) return;               // tracker closed: no logging
+  if(trackerClosed()) return;             // tracker closed: no logging
   if(!ctx || badges[ctx.themeId]) return; // dosage guard: only the live, unearned theme
   activeCtx=ctx; stepIdx=0;
   draft={ painBand:null, confBand:null, moveBand:null, reps:0,
@@ -923,7 +935,7 @@ $('stepBack').onclick=function(){ if(stepIdx>0){ stepIdx--; renderStep(); } };
 $('stepNext').onclick=function(){ var s=STEPS[stepIdx]; if(!s.valid()){ alert('Please choose an answer to continue.'); return; } if(stepIdx<STEPS.length-1){ stepIdx++; renderStep(); } else { earnBadge(); } };
 
 function earnBadge(){
-  if(CONFIG.CLOSED) return;               // tracker closed: no new badges saved
+  if(trackerClosed()) return;             // tracker closed: no new badges saved
   var p=pillarsFromDraft(draft), total=sumPillars(p), id=activeCtx.themeId;
   if(!profile.joinedCohort){ profile.joinedCohort=activeCtx.cohort.id; profile.joinedProgramWeek=activeCtx.programWeek; save('mps_profile',profile); }
   var b={ themeId:id, themeName:themeName(id), cohortId:activeCtx.cohort.id, programWeek:activeCtx.programWeek,
@@ -1008,9 +1020,9 @@ function syncLocalToSupabase(){
   if(!hasSupabase() || !profile || !profile.email) return;
   try{ pushMember(); Object.keys(badges).forEach(function(id){ pushBadge(badges[id]); }); }catch(e){}
 }
-if(CONFIG.CLOSED){ $('closedNote').textContent=CONFIG.CLOSED_NOTE; }
+$('closedNote').textContent=CONFIG.CLOSED_NOTE;
 if(profile && profile.email){ syncLocalToSupabase(); renderHome(); show('home'); }
-else if(CONFIG.CLOSED){ show('closed'); }
+else if(trackerClosed()){ show('closed'); }
 else { show('signup'); }
 </script>
 </body>
