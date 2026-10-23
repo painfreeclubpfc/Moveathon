@@ -164,6 +164,16 @@
     <div style="display:flex;gap:10px;">
       <button class="btn" id="csvLoadBtn">Load CSV</button>
       <input id="csvFile" type="file" accept=".csv" hidden>
+      <select class="btn" id="exportCount" title="Choose who to include when you export the CSV">
+        <option value="all">Everyone</option>
+        <option value="6">6 badges ✓ (certificate-ready)</option>
+        <option value="5">Exactly 5 badges</option>
+        <option value="4">Exactly 4 badges</option>
+        <option value="3">Exactly 3 badges</option>
+        <option value="2">Exactly 2 badges</option>
+        <option value="1">Exactly 1 badge</option>
+        <option value="0">0 badges (not started)</option>
+      </select>
       <button class="btn" id="exportBtn">Export CSV</button>
       <button class="btn" id="refreshBtn">↻ Refresh</button>
     </div>
@@ -452,13 +462,19 @@ function parseCsv(t){ var rows=[],row=[],cur='',q=false; for(var i=0;i<t.length;
   if(cur.length||row.length){ row.push(cur); rows.push(row); } return rows; }
 
 document.getElementById('exportBtn').onclick=function(){
-  var rows=byMember(); var head=['name','email','phone','diamond','goal','joined_cohort','join_week','badges_earned','avg_score','best4_avg','status','distinction','cohorts'];
+  var rows=byMember();
+  // Optional filter: export only members holding exactly N badges (N = 0..6).
+  var pick=(document.getElementById('exportCount')||{}).value||'all';
+  var suffix='';
+  if(pick!=='all'){ var n=+pick; rows=rows.filter(function(r){ return r.count===n; }); suffix='-'+n+'-badge'+(n===1?'':'s'); }
+  if(!rows.length){ alert('No members have '+(+pick)+' badge'+(+pick===1?'':'s')+' yet — nothing to export.'); return; }
+  var head=['name','email','phone','diamond','goal','joined_cohort','join_week','badges_earned','avg_score','best4_avg','status','distinction','cohorts'];
   var lines=[head.join(',')];
   rows.forEach(function(r){ lines.push([q(r.name),q(r.id),q(r.phone),isDiamond(r)?'yes':'no',q(r.goal),r.joinedCohort,r.joinWeek||'',r.count,r.avg,r.best4avg,
     r.graduated?'complete':'in_progress', r.distinction?'yes':'no', q(r.cohorts.join(' '))].join(',')); });
   function q(s){ s=(''+ (s==null?'':s)); return /[",\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s; }
   var blob=new Blob([lines.join('\n')],{type:'text/csv'}); var a=document.createElement('a');
-  a.href=URL.createObjectURL(blob); a.download='move-a-thon-members.csv'; document.body.appendChild(a); a.click(); a.remove();
+  a.href=URL.createObjectURL(blob); a.download='move-a-thon-members'+suffix+'.csv'; document.body.appendChild(a); a.click(); a.remove();
 };
 document.getElementById('refreshBtn').onclick=loadData;
 ['search','fCohort','fStatus'].forEach(function(id){ document.getElementById(id).addEventListener('input', render); });
