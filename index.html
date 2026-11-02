@@ -1021,6 +1021,17 @@ function syncLocalToSupabase(){
   try{ pushMember(); Object.keys(badges).forEach(function(id){ pushBadge(badges[id]); }); }catch(e){}
 }
 $('closedNote').textContent=CONFIG.CLOSED_NOTE;
+
+/* Admin reset link: opening …/moveathon/?reset wipes this device's local
+   journey (profile + badges) and starts fresh at sign-up. Handy for the
+   host demoing "how to fill the tracker" to a new cohort. It only clears
+   THIS device — it does not touch anyone's data in the backend. */
+if(/(^|[?&])reset(=|&|$)/i.test(location.search)){
+  try{ localStorage.removeItem('mps_profile'); localStorage.removeItem('mps_badges'); localStorage.removeItem('mps_grad'); }catch(e){}
+  profile=null; badges={}; grad=null;
+  try{ history.replaceState(null,'',location.pathname); }catch(e){}
+}
+
 if(profile && profile.email){ syncLocalToSupabase(); renderHome(); show('home'); }
 else if(trackerClosed()){ show('closed'); }
 else { show('signup'); }
