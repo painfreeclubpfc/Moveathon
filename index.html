@@ -525,6 +525,11 @@ var CONFIG = {
      can fill any mission they haven't earned yet, even between runs. Set to
      false to go back to the weekly cohort reveal (one mission unlocks a week). */
   ALWAYS_OPEN:      true,
+  /* Demo accounts: these emails ALWAYS start from scratch. They never restore
+     past badges, never save to the backend (so they don't touch the dashboard),
+     and reset to blank every time the app is reopened — so the host can log in
+     and demo "how to fill the tracker" cleanly, over and over. Lowercase. */
+  FRESH_EMAILS:     ['thesportsortho@gmail.com'],
   SANYA_WHATSAPP:   'SANYA_WHATSAPP', // full intl digits, no + (e.g. 919876543210)
   COMMUNITY_URL:    'COMMUNITY_URL',  // link to community dashboard
   SUPABASE_URL:     'https://ojlolgojaqmftnsryxuw.supabase.co',
@@ -571,6 +576,12 @@ function $(id){ return document.getElementById(id); }
 function show(v){ document.querySelectorAll('.view').forEach(function(x){x.classList.remove('active');}); $('view-'+v).classList.add('active'); window.scrollTo(0,0); }
 function load(k){ try{ return JSON.parse(localStorage.getItem(k)); }catch(e){ return null; } }
 function save(k,v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
+/* A demo email that always starts fresh (see CONFIG.FRESH_EMAILS). */
+function isFreshEmail(email){
+  if(!email) return false;
+  var e=(''+email).trim().toLowerCase();
+  return (CONFIG.FRESH_EMAILS||[]).some(function(x){ return (''+x).trim().toLowerCase()===e; });
+}
 /* Staff preview: open ...?preview=YYYY-MM-DD to view the app as if it were that
    date (e.g. to check an upcoming week). Members never use this param. */
 try{ var _pv=new URLSearchParams(location.search).get('preview'); if(_pv && /^\d{4}-\d{2}-\d{2}/.test(_pv)){ window.__MPS_NOW=_pv+'T10:00:00'; } }catch(e){}
@@ -680,7 +691,7 @@ function hasSupabase(){ return CONFIG.SUPABASE_URL && CONFIG.SUPABASE_ANON_KEY; 
 function sbUrl(table,qs){ return CONFIG.SUPABASE_URL.replace(/\/$/,'')+'/rest/v1/'+table+(qs?('?'+qs):''); }
 
 function pushMember(){
-  if(!profile) return;
+  if(!profile || isFreshEmail(profile.email)) return;   // demo accounts never persist
   var row={ member_id:profile.email, name:profile.name, phone:profile.phone, goal:profile.goal,
             cohort_joined:profile.joinedCohort||'', join_program_week:profile.joinedProgramWeek||null,
             badges_earned:earnedThemeIds().length, status:(earnedThemeIds().length>=6?'graduated':'active'),
@@ -692,6 +703,7 @@ function pushMember(){
   if(CONFIG.SHEET_WEBHOOK_URL){ fetch(CONFIG.SHEET_WEBHOOK_URL,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(Object.assign({kind:'member'},row))}).catch(function(){}); }
 }
 function pushBadge(b){
+  if(!profile || isFreshEmail(profile.email)) return;   // demo accounts never persist
   var row={ member_id:profile.email,
             theme_id:b.themeId, theme_name:b.themeName, cohort_id:b.cohortId, program_week:b.programWeek,
             score:b.score, pain:b.pillars.Pain, confidence:b.pillars.Confidence, movement:b.pillars.Movement,
@@ -719,6 +731,7 @@ function loadBadgeRows(rows){
    doesn't split their history. Whichever key matches, we adopt the existing
    account's canonical email as member_id and pull that member's badges. */
 function restoreIdentity(email, phone){
+  if(isFreshEmail(email)) return Promise.resolve(false);   // demo accounts start blank
   if(!hasSupabase()) return Promise.resolve(false);
   var pk=phoneKey(phone);
   var orv='or=(member_id.eq.'+encodeURIComponent(email)+(pk?(',phone.eq.'+encodeURIComponent(pk)):'')+')';
@@ -1065,6 +1078,11 @@ if(/(^|[?&])reset(=|&|$)/i.test(location.search)){
   try{ history.replaceState(null,'',location.pathname); }catch(e){}
 }
 
+// Demo accounts (CONFIG.FRESH_EMAILS) always reopen blank — wipe their local cache.
+if(profile && profile.email && isFreshEmail(profile.email)){
+  badges={}; grad=null;
+  try{ localStorage.removeItem('mps_badges'); localStorage.removeItem('mps_grad'); }catch(e){}
+}
 if(profile && profile.email){ syncLocalToSupabase(); renderHome(); show('home'); }
 else if(trackerClosed()){ show('closed'); }
 else { show('signup'); }
